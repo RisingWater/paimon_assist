@@ -113,6 +113,7 @@ select { background:#0f3460; color:#eee; border:1px solid #1a4a8a; padding:3px 8
         <button onclick="uploadVoiceprint()" style="background:#e94560;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">上传</button>
       </div>
     </div>
+  </div>
   <!-- 声纹检测弹窗 -->
   <div id="dlg-detect" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:100;justify-content:center;align-items:center">
     <div style="background:#16213e;padding:24px;border-radius:12px;min-width:500px;max-height:80vh;overflow-y:auto">
