@@ -101,13 +101,20 @@ def count() -> int:
 
 def find_best(emb: np.ndarray) -> "tuple[int|None, str, float]":
     """
-    多声纹匹配：每个用户的全部声纹取平均余弦相似度，返回最佳用户。
+    声纹匹配算法：
+
+    1. 计算当前声纹与库中每一条声纹的余弦相似度
+    2. 筛选 sim > 0.5 的声纹
+    3. 统计命中的 user_id：
+       - 0 个 user_id → 陌生人
+       - 1 个 user_id → 就是这个人
+       - 多个 user_id → 对每个 user 取平均 sim，最高者胜出
 
     Returns:
-        (user_id, name, avg_similarity)
-        如果库为空或没有任何用户超过阈值，返回 (None, "", 0.0)
+        (user_id, name, best_similarity)
+        陌生人返回 (None, "", 0.0)
     """
-    from config import VOICEPRINT_THRESHOLD
+    THRESHOLD = 0.5
 
     conn = _connect()
     rows = conn.execute(
@@ -118,27 +125,39 @@ def find_best(emb: np.ndarray) -> "tuple[int|None, str, float]":
     if not rows:
         return None, "", 0.0
 
-    # 按用户分组计算平均相似度
-    user_sims: dict[int, list[float]] = {}
-    user_names: dict[int, str] = {}
+    # 1. 计算每条声纹的相似度
+    hits: list[tuple[int, str, float]] = []  # (user_id, name, sim)
     for uid, vec_blob, name in rows:
         stored = np.frombuffer(vec_blob, dtype=np.float32)
         sim = float(np.dot(emb, stored) / (np.linalg.norm(emb) * np.linalg.norm(stored)))
-        user_sims.setdefault(uid, []).append(sim)
-        user_names[uid] = name
+        if sim > THRESHOLD:
+            hits.append((uid, name, sim))
 
-    # 取每个用户的平均相似度
+    # 2. 统计命中的 user_id
+    hit_uids = set(uid for uid, _, _ in hits)
+
+    if len(hit_uids) == 0:
+        # 陌生人
+        return None, "", 0.0
+
+    if len(hit_uids) == 1:
+        # 只有一个 user → 就是这个人
+        uid = next(iter(hit_uids))
+        avg = sum(s for u, _, s in hits if u == uid) / sum(1 for u, _, s in hits if u == uid)
+        name = hits[0][1]
+        return uid, name, avg
+
+    # 3. 多个 user_id → 取平均分最高的
     best_uid, best_name, best_avg = None, "", 0.0
-    for uid, sims in user_sims.items():
-        avg = sum(sims) / len(sims)
+    for uid in hit_uids:
+        user_hits = [(n, s) for u, n, s in hits if u == uid]
+        avg = sum(s for _, s in user_hits) / len(user_hits)
         if avg > best_avg:
             best_avg = avg
             best_uid = uid
-            best_name = user_names[uid]
+            best_name = user_hits[0][0]
 
-    if best_avg >= VOICEPRINT_THRESHOLD:
-        return best_uid, best_name, best_avg
-    return None, "", best_avg
+    return best_uid, best_name, best_avg
 
 
 def list_voiceprints(user_id: int | None = None) -> "list[dict]":
