@@ -7,7 +7,6 @@ _pipeline = None
 
 
 def load():
-    """预加载声纹模型（启动时调用一次）"""
     global _pipeline
     if _pipeline is not None:
         return
@@ -23,31 +22,36 @@ def load():
 
 
 def extract(wav_path: str) -> np.ndarray:
-    """从音频提取声纹向量"""
-    # pipeline 需要一对音频来提取 embedding
     result = _pipeline([wav_path, wav_path], output_emb=True)
     return np.array(result["embs"][0])
 
 
-def verify(wav_path: str) -> "tuple[bool, str]":
+def verify(wav_path: str) -> "tuple[int|None, str]":
     """
-    声纹验证（持续注册模式）。
-    - 数据库为空 → 注册，名字留空
-    - 最匹配声纹 >= 阈值 → 识别为该用户
-    - 最匹配声纹 < 阈值 → 自动注册，名字留空
-    始终返回 (True, 信息字符串)。名字为空表示尚未命名。
+    声纹验证（多声纹平均匹配 + 自动注册）。
+
+    Returns:
+        (user_id, 信息字符串)
+        user_id=None 表示没匹配到任何人（会自动注册新用户）
     """
     emb = extract(wav_path)
 
-    # 首次运行
+    # 库为空 → 创建第一个用户
     if db.count() == 0:
-        db.enroll("", emb, audio_path=wav_path)
-        return True, "enrolled:"
+        uid = db.create_user("")
+        db.enroll(uid, emb, audio_path=wav_path)
+        return uid, "enrolled:"
 
-    name, sim = db.find_best(emb)
-    if name and sim >= VOICEPRINT_THRESHOLD:
-        return True, f"{name}:{sim:.4f}"
+    # 多声纹平均匹配
+    uid, name, avg_sim = db.find_best(emb)
 
-    # 未匹配 → 自动注册，名字留空
-    db.enroll("", emb, audio_path=wav_path)
-    return True, "enrolled:"
+    if uid is not None:
+        # 匹配成功 → 追加一条声纹（丰富这个用户的声纹库）
+        db.enroll(uid, emb, audio_path=wav_path)
+        display = name if name else f"用户#{uid}"
+        return uid, f"{display}:{avg_sim:.4f}"
+
+    # 陌生人 → 新建用户 + 首条声纹
+    uid = db.create_user("")
+    db.enroll(uid, emb, audio_path=wav_path)
+    return uid, "enrolled:"

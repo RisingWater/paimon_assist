@@ -29,7 +29,7 @@ VAD_SILENCE_MS = int(os.getenv("VAD_SILENCE_MS", "800"))
 MAX_RECORD_SECONDS = int(os.getenv("MAX_RECORD_SECONDS", "10"))
 
 # --- 声纹验证 ---
-VOICEPRINT_THRESHOLD = float(os.getenv("VOICEPRINT_THRESHOLD", "0.75"))
+VOICEPRINT_THRESHOLD = float(os.getenv("VOICEPRINT_THRESHOLD", "0.5"))
 VOICEPRINT_DB = os.getenv("VOICEPRINT_DB", "models/voiceprints.db")
 VOICEPRINT_MODEL = os.getenv(
     "VOICEPRINT_MODEL", "iic/speech_eres2netv2_sv_zh-cn_16k-common"

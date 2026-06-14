@@ -66,27 +66,25 @@ async def main():
             filename = await asyncio.to_thread(vad.record, counter)
 
             # 2. 声纹验证
-            ok, info = await asyncio.to_thread(voiceprint.verify, filename)
-            # 从 info 中提取说话人名字（空字符串 = 未命名）
+            user_id, info = await asyncio.to_thread(voiceprint.verify, filename)
             if info.startswith("enrolled:"):
-                speaker = info.split(":", 1)[1]
-                if speaker:
-                    print(f"  Voiceprint: ENROLLED as '{speaker}'")
-                else:
-                    print(f"  Voiceprint: ENROLLED (unnamed)")
+                speaker = ""
+                print(f"  Voiceprint: ENROLLED (user_id={user_id})")
             else:
-                speaker = info.rsplit(":", 1)[0]  # "张三:0.92" → "张三"
-                print(f"  Voiceprint: {speaker} sim={info.split(':')[-1]}")
+                # "张三:0.92" → speaker="张三", sim="0.92"
+                speaker = info.rsplit(":", 1)[0]
+                sim = info.split(":")[-1]
+                print(f"  Voiceprint: {speaker} user_id={user_id} sim={sim}")
 
             # 3. STT
             print("  STT...", end=" ", flush=True)
             text = await asyncio.to_thread(stt.transcribe, filename)
             print(f"-> '{text}'")
 
-            # 4. LLM（仅当声纹已命名时才告诉 LLM 说话人）
+            # 4. LLM（按 user_id 维护独立对话历史）
             if text.strip():
                 print(f"  DeepSeek...", end=" ", flush=True)
-                reply = await asyncio.to_thread(llm.chat, text, speaker if speaker else "")
+                reply = await asyncio.to_thread(llm.chat, text, user_id or 0, speaker)
                 print(f"-> '{reply}'")
                 tts.speak(reply)
 

@@ -27,17 +27,23 @@ def record(counter: int) -> str:
 
     print("  Recording...", end=" ", flush=True)
 
-    for _ in range(max_frames):
+    for i in range(max_frames):
         data = stream.read(512, exception_on_overflow=False)
         frames.append(data)
 
-        if len(frames) % 64 == 0:
+        # 每 16 帧 (~0.5s) 检查一次 VAD，比之前的 64 帧 (~2s) 灵敏很多
+        if i > 0 and i % 16 == 0:
             audio = (
                 np.frombuffer(b"".join(frames), dtype=np.int16).astype(np.float32)
                 / 32768.0
             )
             speech_ts = get_speech_timestamps(
-                audio, vad_model, sampling_rate=SAMPLE_RATE
+                audio,
+                vad_model,
+                sampling_rate=SAMPLE_RATE,
+                threshold=0.7,               # 更高 = 更严格，背景噪音不容易被当成语音
+                min_speech_duration_ms=250,  # 最短语音时长（恢复默认）
+                min_silence_duration_ms=200, # 静音至少持续 200ms 才算断句
             )
 
             if len(speech_ts) > 0:
