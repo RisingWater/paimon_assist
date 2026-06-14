@@ -71,6 +71,7 @@ select { background:#0f3460; color:#eee; border:1px solid #1a4a8a; padding:3px 8
     <div style="display:flex;gap:8px">
       <button onclick="showCreateUser()">+ 新建用户</button>
       <button onclick="showAddVoiceprint()">+ 添加声纹</button>
+      <button onclick="showDetect()">🔍 声纹检测</button>
       <button onclick="loadPage(currentPage)">刷新</button>
     </div>
   </div>
@@ -110,6 +111,19 @@ select { background:#0f3460; color:#eee; border:1px solid #1a4a8a; padding:3px 8
       <div style="display:flex;gap:8px;justify-content:flex-end">
         <button onclick="closeVpDlg()" style="background:#333;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">取消</button>
         <button onclick="uploadVoiceprint()" style="background:#e94560;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">上传</button>
+      </div>
+    </div>
+  <!-- 声纹检测弹窗 -->
+  <div id="dlg-detect" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:100;justify-content:center;align-items:center">
+    <div style="background:#16213e;padding:24px;border-radius:12px;min-width:500px;max-height:80vh;overflow-y:auto">
+      <h3 style="margin-bottom:16px;color:#e94560">🔍 声纹检测</h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+        <button id="detect-btn" onclick="detectToggleRecord()" style="background:#e94560;color:#eee;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;min-width:100px">🎤 录音</button>
+        <span id="detect-status" style="color:#888;font-size:13px">录一段声音，检测是谁</span>
+      </div>
+      <div id="detect-result" style="font-size:13px"></div>
+      <div style="margin-top:16px;text-align:right">
+        <button onclick="closeDetect()" style="background:#333;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">关闭</button>
       </div>
     </div>
   </div>
@@ -372,6 +386,88 @@ async function uploadVoiceprint() {
   } catch (e) { toast("上传失败: " + e); }
 }
 
+// ---- 声纹检测 ----
+let detectRecorder = null;
+let detectChunks = [];
+let detectBlob = null;
+
+async function detectToggleRecord() {
+  const btn = document.getElementById("detect-btn");
+  const status = document.getElementById("detect-status");
+
+  if (detectRecorder && detectRecorder.state === "recording") {
+    detectRecorder.stop();
+    btn.textContent = "🎤 录音";
+    btn.style.background = "#e94560";
+    status.textContent = "正在分析...";
+  } else {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      detectRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      detectChunks = [];
+      detectBlob = null;
+      document.getElementById("detect-result").innerHTML = "";
+
+      detectRecorder.ondataavailable = e => detectChunks.push(e.data);
+      detectRecorder.onstop = async () => {
+        detectBlob = new Blob(detectChunks, { type: "audio/webm" });
+        stream.getTracks().forEach(t => t.stop());
+        await runDetection();
+      };
+
+      detectRecorder.start();
+      btn.textContent = "⏹ 停止";
+      btn.style.background = "#c0392b";
+      status.textContent = "正在录音...";
+    } catch (e) {
+      toast("无法访问麦克风: " + e.message);
+    }
+  }
+}
+
+async function runDetection() {
+  if (!detectBlob) return;
+  const fd = new FormData();
+  fd.append("file", detectBlob, "detect.webm");
+
+  try {
+    const res = await fetch("/api/voiceprints/detect", { method: "POST", body: fd });
+    if (!res.ok) { toast("检测失败"); return; }
+    const data = await res.json();
+
+    document.getElementById("detect-status").textContent =
+      data.best_uid ? ("识别结果: " + (data.best_name || "用户#" + data.best_uid) + " (sim=" + data.best_avg.toFixed(4) + ")") : "未匹配到任何人";
+
+    let html = "";
+    for (const ug of data.users) {
+      const dn = ug.name || "用户#" + ug.user_id;
+      html += '<div style="background:#0f3460;padding:10px 14px;border-radius:6px;margin-bottom:8px">';
+      html += '<strong>' + esc(dn) + '</strong> (avg=' + ug.avg_sim.toFixed(4) + ')';
+      html += '<div style="margin-top:4px">';
+      for (const vp of ug.voiceprints) {
+        const c = vp.sim > 0.5 ? "#a0e0a0" : "#888";
+        html += '<span style="color:' + c + ';margin-right:12px;font-size:11px">#' + vp.id + ': ' + vp.sim.toFixed(4) + '</span>';
+      }
+      html += '</div></div>';
+    }
+    document.getElementById("detect-result").innerHTML = html;
+  } catch (e) { toast("检测失败: " + e); }
+}
+
+function showDetect() {
+  detectBlob = null;
+  document.getElementById("detect-result").innerHTML = "";
+  document.getElementById("detect-status").textContent = "录一段声音，检测是谁";
+  document.getElementById("detect-btn").textContent = "🎤 录音";
+  document.getElementById("detect-btn").style.background = "#e94560";
+  document.getElementById("dlg-detect").style.display = "flex";
+}
+
+function closeDetect() {
+  if (detectRecorder && detectRecorder.state === "recording") detectRecorder.stop();
+  document.getElementById("dlg-detect").style.display = "none";
+}
+
 function toast(msg) {
   const el = document.getElementById("toast");
   el.textContent = msg;
@@ -468,6 +564,89 @@ async def api_add_voiceprint(user_id: int, file: UploadFile = File(...)):
     # 保存
     db.enroll(user_id, emb, audio_path=path)
     return {"ok": True, "user_id": user_id, "audio_path": path}
+
+
+# ---- 声纹检测 ----
+
+@app.post("/api/voiceprints/detect")
+async def api_detect_voiceprint(file: UploadFile = File(...)):
+    """上传音频，返回与库中所有声纹的详细相似度"""
+    import numpy as np
+    import voiceprint
+
+    content = await file.read()
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    tmp_path = f"recording_detect_{ts}.wav"
+
+    # webm → wav
+    if file.filename and (file.filename.endswith(".webm") or file.content_type == "audio/webm"):
+        tmp_webm = tempfile.mktemp(suffix=".webm")
+        with open(tmp_webm, "wb") as f:
+            f.write(content)
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_webm, "-ar", "16000", "-ac", "1", "-f", "wav", tmp_path],
+            capture_output=True,
+        )
+        os.unlink(tmp_webm)
+    else:
+        with open(tmp_path, "wb") as f:
+            f.write(content)
+
+    try:
+        voiceprint.load()
+        emb = voiceprint.extract(tmp_path)
+    finally:
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+
+    # 与每条声纹做余弦相似度
+    import db
+    rows = []
+    conn = db._connect()
+    for uid, vec_blob, name in conn.execute(
+        "SELECT v.user_id, v.vector, u.name FROM voiceprints v JOIN users u ON v.user_id=u.id"
+    ).fetchall():
+        stored = np.frombuffer(vec_blob, dtype=np.float32)
+        sim = float(np.dot(emb, stored) / (np.linalg.norm(emb) * np.linalg.norm(stored)))
+        rows.append({"user_id": uid, "name": name, "vp_id": uid, "sim": sim, "vector_blob": vec_blob})
+    conn.close()
+
+    # 重新查完整的声纹 ID
+    conn = db._connect()
+    all_vps = conn.execute(
+        "SELECT v.id, v.user_id, v.vector, u.name FROM voiceprints v JOIN users u ON v.user_id=u.id"
+    ).fetchall()
+    conn.close()
+
+    details = []
+    for vp_id, uid, vec_blob, name in all_vps:
+        stored = np.frombuffer(vec_blob, dtype=np.float32)
+        sim = float(np.dot(emb, stored) / (np.linalg.norm(emb) * np.linalg.norm(stored)))
+        details.append({"vp_id": vp_id, "user_id": uid, "name": name, "sim": sim})
+
+    # 按用户分组
+    users_map = {}
+    for d in details:
+        uid = d["user_id"]
+        if uid not in users_map:
+            users_map[uid] = {"user_id": uid, "name": d["name"], "voiceprints": [], "avg_sim": 0}
+        users_map[uid]["voiceprints"].append({"id": d["vp_id"], "sim": d["sim"]})
+
+    for uid, ug in users_map.items():
+        sims = [v["sim"] for v in ug["voiceprints"]]
+        ug["avg_sim"] = sum(sims) / len(sims) if sims else 0
+
+    users_list = sorted(users_map.values(), key=lambda u: u["avg_sim"], reverse=True)
+
+    # 按 db.find_best 逻辑判断匹配
+    best_uid, best_name, best_avg = db.find_best(emb)
+
+    return {
+        "best_uid": best_uid,
+        "best_name": best_name,
+        "best_avg": best_avg,
+        "users": users_list,
+    }
 
 
 # ---- 声纹 API ----
