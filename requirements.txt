@@ -1,0 +1,7 @@
+livekit-wakeword[listener]
+silero-vad
+funasr
+modelscope
+requests
+numpy
+python-dotenv

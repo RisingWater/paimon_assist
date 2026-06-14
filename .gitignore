@@ -1,0 +1,15 @@
+# 环境配置（含密钥，不要提交）
+.env
+
+# Python 虚拟环境
+venv/
+
+# SenseVoiceSmall 模型（大文件，首次运行自动下载）
+models/iic/
+
+# 录音文件
+*.wav
+
+# Python
+__pycache__/
+*.pyc
