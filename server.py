@@ -1,10 +1,12 @@
-"""FastAPI Web 管理界面 — 管理声纹数据库"""
+"""FastAPI Web 管理界面 — 声纹管理 + TTS API"""
 import os
 import db
+import tts_api
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 
-app = FastAPI(title="派萌助手 - 声纹管理")
+app = FastAPI(title="派萌助手")
+app.include_router(tts_api.router)
 
 # ============================================================
 # Web 页面

@@ -10,8 +10,10 @@ THRESHOLD = float(os.getenv("THRESHOLD", "0.25"))
 DEBOUNCE = float(os.getenv("DEBOUNCE", "1.0"))
 
 # --- TTS ---
+TTS_BACKEND = os.getenv("TTS_BACKEND", "vits")  # "vits" 或 "web"
 TTS_URL = os.getenv("TTS_URL", "http://192.168.1.180:6018/api/tts/speak")
 TTS_TEXT = os.getenv("TTS_TEXT", "我在")
+TTS_CACHE_DIR = os.getenv("TTS_CACHE_DIR", "models/tts_cache")
 
 # --- DeepSeek ---
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
@@ -29,4 +31,6 @@ MAX_RECORD_SECONDS = int(os.getenv("MAX_RECORD_SECONDS", "10"))
 # --- 声纹验证 ---
 VOICEPRINT_THRESHOLD = float(os.getenv("VOICEPRINT_THRESHOLD", "0.75"))
 VOICEPRINT_DB = os.getenv("VOICEPRINT_DB", "models/voiceprints.db")
-VOICEPRINT_MODEL = os.getenv("VOICEPRINT_MODEL", "pyannote/wespeaker-voxceleb-resnet34-LM")
+VOICEPRINT_MODEL = os.getenv(
+    "VOICEPRINT_MODEL", "iic/speech_eres2netv2_sv_zh-cn_16k-common"
+)

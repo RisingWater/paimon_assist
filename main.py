@@ -46,6 +46,8 @@ async def main():
     threading.Thread(target=_start_webserver, daemon=True).start()
 
     stt.load()
+    voiceprint.load()
+    tts.load()
 
     print(f"Threshold: {THRESHOLD}")
     print(f"Voiceprint threshold: {VOICEPRINT_THRESHOLD}")

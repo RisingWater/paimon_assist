@@ -1,39 +1,32 @@
-"""声纹提取与验证"""
+"""声纹提取与验证 — ModelScope 中文声纹模型"""
 import numpy as np
 from config import VOICEPRINT_MODEL, VOICEPRINT_THRESHOLD
 import db
 
-_model = None
+_pipeline = None
 
 
-def _load_model():
-    """延迟加载声纹模型"""
-    global _model
-    if _model is None:
-        from pyannote.audio import Model
+def load():
+    """预加载声纹模型（启动时调用一次）"""
+    global _pipeline
+    if _pipeline is not None:
+        return
+    from modelscope.pipelines import pipeline
+    from modelscope.utils.constant import Tasks
 
-        print("  Loading voiceprint model...", end=" ", flush=True)
-        _model = Model.from_pretrained(VOICEPRINT_MODEL)
-        print("Done")
-    return _model
+    print("Loading voiceprint model...", end=" ", flush=True)
+    _pipeline = pipeline(
+        task=Tasks.speaker_verification,
+        model=VOICEPRINT_MODEL,
+    )
+    print("Done")
 
 
 def extract(wav_path: str) -> np.ndarray:
-    """从音频提取 512 维声纹向量"""
-    import torch
-    import scipy.io.wavfile as wavfile
-
-    model = _load_model()
-    sr, audio = wavfile.read(wav_path)
-    # int16 → float32 [-1, 1]
-    audio = audio.astype(np.float32) / 32768.0
-    # 立体声 → 单声道
-    if audio.ndim > 1:
-        audio = audio.mean(axis=1)
-    # (batch=1, channel=1, samples)
-    waveform = torch.from_numpy(audio).view(1, 1, -1)
-    embedding = model(waveform)
-    return embedding[0].detach().cpu().numpy()
+    """从音频提取声纹向量"""
+    # pipeline 需要一对音频来提取 embedding
+    result = _pipeline([wav_path, wav_path], output_emb=True)
+    return np.array(result["embs"][0])
 
 
 def verify(wav_path: str) -> "tuple[bool, str]":
