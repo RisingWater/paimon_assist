@@ -10,6 +10,7 @@ numpy
 python-dotenv
 fastapi
 uvicorn
+python-multipart
 pypinyin
 torch
 pyaudio

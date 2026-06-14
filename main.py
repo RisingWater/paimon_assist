@@ -93,7 +93,24 @@ async def main():
 
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\nStopped.")
+    import argparse
+
+    parser = argparse.ArgumentParser(description="派萌助手")
+    parser.add_argument(
+        "--web-only",
+        action="store_true",
+        help="只启动 Web 管理界面，不加载唤醒词/STT/LLM",
+    )
+    args = parser.parse_args()
+
+    if args.web_only:
+        import uvicorn
+        from server import app
+
+        print("Web-only mode: http://localhost:8160")
+        uvicorn.run(app, host="0.0.0.0", port=8160, log_level="info")
+    else:
+        try:
+            asyncio.run(main())
+        except KeyboardInterrupt:
+            print("\nStopped.")
