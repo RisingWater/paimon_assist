@@ -7,73 +7,95 @@
 "派萌助手" — 实时语音助手，处理链路：
 
 ```
-唤醒词 → "我在"(TTS) → 录音(VAD) → 声纹验证 → STT → DeepSeek → TTS 播报
+唤醒词 → "我在呢"(TTS) → 录音(VAD) → 声纹验证 → STT → DeepSeek → TTS 播报
 ```
 
 ## 模块结构
 
 | 文件 | 职责 | 对外接口 |
 |------|------|----------|
-| `main.py` | 入口 + ONNX patch + 主循环编排 | — |
+| `main.py` | 入口 + ONNX patch + 主循环编排 + `--web-only` | — |
 | `config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
-| `wakeword.py` | 唤醒词检测 | `create_listener() -> WakeWordListener` |
-| `tts.py` | TTS 播报 | `speak(text)`, `wake_ack()` |
-| `vad.py` | VAD 录音 | `record(counter) -> filename` |
-| `voiceprint.py` | 声纹提取 + 验证 | `verify(wav_path) -> (bool, str)` |
-| `db.py` | 声纹 SQLite 操作 | `enroll()`, `find_best()`, `count()` |
-| `stt.py` | 语音转文字 | `load()`, `transcribe(wav_path) -> str` |
-| `llm.py` | DeepSeek 对话 | `chat(user_text) -> str` |
-| `server.py` | FastAPI Web 管理界面 | 内嵌 HTML + REST API |
+| `wakeword.py` | 唤醒词检测 | `create_listener()` |
+| `tts.py` | TTS 后端分发（vits / web） | `speak(text)`, `wake_ack()`, `load()` |
+| `vits_tts.py` | VITS 本地合成（Paimon 音色，22050Hz） | `synthesize(text)`, `speak(text)`, `wake_ack()` |
+| `vad.py` | VAD 录音，静音自动停止 | `record(counter) -> filename` |
+| `voiceprint.py` | 声纹提取 + 多声纹平均匹配 | `verify(wav_path) -> (user_id, info)` |
+| `db.py` | 用户表 + 声纹表（SQLite） | `create_user()`, `enroll()`, `find_best()` |
+| `stt.py` | 语音转文字（SenseVoiceSmall） | `load()`, `transcribe(wav_path) -> str` |
+| `llm.py` | DeepSeek 对话，按 user_id 隔离历史 | `chat(text, user_id, speaker) -> str` |
+| `server.py` | FastAPI Web 管理界面（用户/声纹/TTS） | 内嵌 HTML + REST API |
+| `tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
+| `tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
+| `web_tts.py` | HTTP TTS 后端（调用外部服务） | `speak(text)`, `wake_ack()` |
+| `vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
 
 ## 运行方式
 
 ```powershell
-venv\Scripts\python.exe main.py
+# 完整模式（唤醒词 + STT + LLM + TTS）
+venv\Scripts\python main.py
+
+# 仅 Web 管理界面（不加载模型）
+venv\Scripts\python main.py --web-only
 ```
 
-启动后自动在 `http://localhost:8160` 开启声纹管理 Web 界面，可以试听录音、编辑名字、删除声纹。
+Web 界面：`http://localhost:8160` — 用户管理、声纹上传/录音/检测、TTS API。
+
+## 数据库
+
+```
+users (id, name, created_at)
+voiceprints (id, user_id, vector BLOB, audio_path, created_at)
+  → 一个 user 可绑定多条声纹
+```
+
+## 声纹匹配算法
+
+1. 提取当前音频的 192 维 embedding（eres2netv2）
+2. 与库中每条声纹计算余弦相似度
+3. 筛选 sim > 0.5 的声纹
+4. 0 个 user_id → 陌生人（自动创建新 user）
+5. 1 个 user_id → 确定身份（追加声纹）
+6. 多个 user_id → 取每个 user 的平均分，最高者胜
 
 ## 依赖
 
 ```
-livekit-wakeword[listener]
-silero-vad
-funasr
-modelscope
-pyannote.audio
-requests
-numpy
-python-dotenv
+torch, pyaudio, pypinyin, unidecode, phonemizer, soundfile, scipy
+livekit-wakeword[listener], silero-vad, funasr, modelscope, addict
+fastapi, uvicorn, python-multipart, requests
+numpy, python-dotenv
 ```
 
-ONNX Runtime 由 livekit-wakeword 间接引入。`main.py` 在顶部 monkey-patch 了 `onnxruntime.InferenceSession.__init__`，强制单线程 CPU 推理，防止线程池爆炸。
-
-## 配置
-
-所有参数通过 `.env` 管理（模板见 `.env.example`）。`config.py` 用 `python-dotenv` 加载并导出为模块级常量，其他模块按需 import。
-
-关键配置项：
+## 关键配置（.env）
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `DEEPSEEK_API_KEY` | DeepSeek 密钥（必填） | — |
-| `TTS_URL` | TTS 服务地址 | `http://192.168.1.180:6018/api/tts/speak` |
+| `TTS_BACKEND` | TTS 后端: "vits" 或 "web" | vits |
+| `TTS_URL` | Web TTS 服务地址 | `http://192.168.1.180:6018/api/tts/speak` |
 | `THRESHOLD` | 唤醒词灵敏度 | 0.25 |
-| `VOICEPRINT_THRESHOLD` | 声纹余弦相似度阈值 | 0.75 |
-| `DEFAULT_SPEAKER_NAME` | 首次自动注册的默认名字 | 主人 |
-| `DISABLE_UPDATE` | 设为 `1` 禁止模型在线更新 | 0 |
+| `VOICEPRINT_THRESHOLD` | 声纹相似度阈值 | 0.5 |
+| `VAD_SILENCE_MS` | VAD 静音判定时间 | 800 |
+| `MAX_RECORD_SECONDS` | 最长录音时间 | 10 |
+| `TTS_CACHE_DIR` | TTS 缓存目录 | models/tts_cache |
+| `DISABLE_UPDATE` | 设为 1 禁止模型在线更新 | 0 |
 
-## 模型下载
+## 模型文件
 
-| 模型 | 来源 | 自动下载 |
-|------|------|----------|
-| paimeng.onnx | 自定义训练/获取 | 否 |
-| SenseVoiceSmall | ModelScope | 是（首次） |
-| wespeaker-voxceleb-resnet34-LM | HuggingFace | 是（首次调用声纹时） |
+| 模型 | 路径 | 说明 |
+|------|------|------|
+| paimeng.onnx | models/ | 唤醒词模型 |
+| paimon.pth | models/ | VITS Paimon 语音合成（417MB，不提交 git） |
+| paimon_config.json | models/ | VITS 训练配置（biaobei_base.json） |
+| SenseVoiceSmall | models/iic/ | STT 模型（首次自动下载） |
+| eres2netv2 | ~/.cache/modelscope/ | 声纹模型（首次自动下载） |
 
 ## 注意事项
 
-- TTS 服务是外部依赖，需单独运行。连不上时 `tts.speak()` 静默吞错。
-- 录音文件 `recording_*.wav` 不会自动清理。
-- `models/voiceprints.db` 是声纹数据库，删除即清空全部注册。
-- `models/iic/`、`models/voiceprints.db`、`.env` 已在 `.gitignore`。
+- TTS 缓存目录 `models/tts_cache/` 不提交 git
+- 录音文件 `recording_*.wav` 不提交 git
+- 声纹数据库 `models/voiceprints.db` 不提交 git
+- VITS 模型权重 `models/paimon.pth` 不提交 git
+- `models/iic/` 不提交 git
