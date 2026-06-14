@@ -5,3 +5,6 @@ modelscope
 requests
 numpy
 python-dotenv
+pyannote.audio
+fastapi
+uvicorn

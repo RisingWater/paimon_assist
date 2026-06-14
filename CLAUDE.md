@@ -4,16 +4,26 @@
 
 ## 项目概述
 
-"派萌助手" — 一个实时语音助手，处理链路如下：
+"派萌助手" — 实时语音助手，处理链路：
 
-1. **唤醒词检测** — ONNX 模型 `models/paimeng.onnx`，通过 `livekit.wakeword` 加载
-2. **唤醒应答** — 调用本地 TTS 服务播放"我在"
-3. **录音 + VAD** — `silero_vad` 检测静音后自动停止录音
-4. **语音转文字（STT）** — FunASR 的 `SenseVoiceSmall` 模型，离线运行
-5. **LLM 对话** — 调用 DeepSeek API（`deepseek-chat`）
-6. **语音合成（TTS）** — 将 LLM 回复通过 TTS 服务播放
+```
+唤醒词 → "我在"(TTS) → 录音(VAD) → 声纹验证 → STT → DeepSeek → TTS 播报
+```
 
-全部代码集中在 `main.py`（约 180 行），无包结构、无测试、无构建系统——就是一个独立脚本。
+## 模块结构
+
+| 文件 | 职责 | 对外接口 |
+|------|------|----------|
+| `main.py` | 入口 + ONNX patch + 主循环编排 | — |
+| `config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
+| `wakeword.py` | 唤醒词检测 | `create_listener() -> WakeWordListener` |
+| `tts.py` | TTS 播报 | `speak(text)`, `wake_ack()` |
+| `vad.py` | VAD 录音 | `record(counter) -> filename` |
+| `voiceprint.py` | 声纹提取 + 验证 | `verify(wav_path) -> (bool, str)` |
+| `db.py` | 声纹 SQLite 操作 | `enroll()`, `find_best()`, `count()` |
+| `stt.py` | 语音转文字 | `load()`, `transcribe(wav_path) -> str` |
+| `llm.py` | DeepSeek 对话 | `chat(user_text) -> str` |
+| `server.py` | FastAPI Web 管理界面 | 内嵌 HTML + REST API |
 
 ## 运行方式
 
@@ -21,7 +31,7 @@
 venv\Scripts\python.exe main.py
 ```
 
-启动后加载模型（SenseVoiceSmall 和唤醒词 ONNX），然后持续监听唤醒词，按 Ctrl+C 退出。
+启动后自动在 `http://localhost:8160` 开启声纹管理 Web 界面，可以试听录音、编辑名字、删除声纹。
 
 ## 依赖
 
@@ -30,45 +40,40 @@ livekit-wakeword[listener]
 silero-vad
 funasr
 modelscope
+pyannote.audio
 requests
 numpy
+python-dotenv
 ```
 
-ONNX Runtime 是唤醒词模型的间接依赖。脚本在启动时 monkey-patch 了 `onnxruntime.InferenceSession.__init__`，强制使用单线程 CPU 推理（防止某些 ONNX 版本在线程池上创建过多线程导致卡死）。
-
-## 关键文件
-
-| 文件 | 用途 |
-|------|------|
-| `main.py` | 应用主程序 |
-| `.env` | 实际配置（含密钥，不入 git） |
-| `.env.example` | 配置模板（可提交 git） |
-| `models/paimeng.onnx` | 唤醒词检测 ONNX 模型 |
-| `models/iic/SenseVoiceSmall/` | SenseVoiceSmall 模型目录（自动下载，已 gitignore） |
+ONNX Runtime 由 livekit-wakeword 间接引入。`main.py` 在顶部 monkey-patch 了 `onnxruntime.InferenceSession.__init__`，强制单线程 CPU 推理，防止线程池爆炸。
 
 ## 配置
 
-所有可调参数通过 `.env` 文件管理。`main.py` 启动时通过 `python-dotenv` 加载 `.env`，再用 `os.getenv()` 读取。`.env.example` 是模板文件，列出全部配置项及默认值。`.env` 已加入 `.gitignore`。
+所有参数通过 `.env` 管理（模板见 `.env.example`）。`config.py` 用 `python-dotenv` 加载并导出为模块级常量，其他模块按需 import。
 
-关键的配置项（详见 `.env.example`）：
+关键配置项：
 
-| 变量 | 说明 |
-|------|------|
-| `DEEPSEEK_API_KEY` | DeepSeek API 密钥（必填） |
-| `TTS_URL` | TTS 服务地址 |
-| `THRESHOLD` | 唤醒词置信度阈值 |
-| `DISABLE_UPDATE` | 设为 `1` 禁止模型在线更新 |
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `DEEPSEEK_API_KEY` | DeepSeek 密钥（必填） | — |
+| `TTS_URL` | TTS 服务地址 | `http://192.168.1.180:6018/api/tts/speak` |
+| `THRESHOLD` | 唤醒词灵敏度 | 0.25 |
+| `VOICEPRINT_THRESHOLD` | 声纹余弦相似度阈值 | 0.75 |
+| `DEFAULT_SPEAKER_NAME` | 首次自动注册的默认名字 | 主人 |
+| `DISABLE_UPDATE` | 设为 `1` 禁止模型在线更新 | 0 |
 
 ## 模型下载
 
-SenseVoiceSmall 模型**首次运行时会自动下载**。`.env` 中 `DISABLE_UPDATE=0`（默认），FunASR 会自动从 ModelScope 拉取模型到 `models/iic/SenseVoiceSmall/`。设为 `1` 则跳过在线检查，仅使用本地模型。
-
-`models/iic/` 已加入 `.gitignore`，不会提交到 git。
-
-`models/paimeng.onnx` 是自定义唤醒词模型，需自行训练或获取。
+| 模型 | 来源 | 自动下载 |
+|------|------|----------|
+| paimeng.onnx | 自定义训练/获取 | 否 |
+| SenseVoiceSmall | ModelScope | 是（首次） |
+| wespeaker-voxceleb-resnet34-LM | HuggingFace | 是（首次调用声纹时） |
 
 ## 注意事项
 
-- TTS 服务是外部依赖，需要单独运行。如果连不上，`speak()` 会静默吞掉异常，不影响主流程。
-- ONNX Runtime 的 monkey-patch（`main.py` 开头几行）是必须的，删除可能导致 CPU 线程爆炸。
-- 每次对话的录音会保存为 `recording_*.wav` 放在工作目录下，不会自动清理。
+- TTS 服务是外部依赖，需单独运行。连不上时 `tts.speak()` 静默吞错。
+- 录音文件 `recording_*.wav` 不会自动清理。
+- `models/voiceprints.db` 是声纹数据库，删除即清空全部注册。
+- `models/iic/`、`models/voiceprints.db`、`.env` 已在 `.gitignore`。
