@@ -7,8 +7,10 @@ import asyncio
 import json
 import os
 import threading
-import numpy as np
+from pathlib import Path
 
+import numpy as np
+import soundfile as sf
 import torch
 import pyaudio
 
@@ -18,12 +20,17 @@ from vits.models import SynthesizerTrn
 from vits.text import text_to_sequence
 from vits.text.symbols import symbols  # 178 符号，仅用于 n_vocab
 
+from tts_cache import TTSCache
+
 # ============================================================
 # 路径配置
 # ============================================================
 CHECKPOINT = "models/paimon.pth"
 CONFIG = "models/paimon_config.json"
 PLAY_DEVICE = None
+SAMPLE_RATE = 22050  # biaobei_base.json: data.sampling_rate
+
+_cache = TTSCache(Path("models/tts_cache"))
 
 
 def _load_config(config_path: str) -> dict:
@@ -93,10 +100,19 @@ def load():
 def synthesize(text: str, length_scale: float = 1.0) -> np.ndarray:
     """将文本合成为音频 numpy 数组 (float32, [-1, 1])
 
+    自动走缓存：相同文本只合成一次，后续直接读 WAV。
+
     Args:
         text: 输入中文文本
         length_scale: 语速控制（1.0 = 正常，>1 变慢，<1 变快）
     """
+    # 1. 查缓存
+    cached = _cache.get(text)
+    if cached is not None:
+        audio, _sr = sf.read(str(cached), dtype="float32")
+        return audio
+
+    # 2. VITS 合成
     if _model is None:
         load()
 
@@ -119,11 +135,12 @@ def synthesize(text: str, length_scale: float = 1.0) -> np.ndarray:
             .float()
             .numpy()
         )
-    return np.clip(audio, -1.0, 1.0)
+    audio = np.clip(audio, -1.0, 1.0)
 
+    # 3. 写缓存
+    _cache.save(text, audio, SAMPLE_RATE)
 
-# 导出采样率供缓存模块使用
-SAMPLE_RATE = 22050  # biaobei_base.json: data.sampling_rate
+    return audio
 
 
 async def synthesize_async(text: str, length_scale: float = 1.0) -> np.ndarray:
