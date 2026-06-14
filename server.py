@@ -1,5 +1,7 @@
 """FastAPI Web 管理界面 — 用户 + 声纹管理（分页 + 下拉选用户）"""
 import os
+import subprocess
+import tempfile
 import time
 import db
 import tts_api
@@ -93,15 +95,21 @@ select { background:#0f3460; color:#eee; border:1px solid #1a4a8a; padding:3px 8
 
   <!-- 添加声纹弹窗 -->
   <div id="dlg-vp" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.6);z-index:100;justify-content:center;align-items:center">
-    <div style="background:#16213e;padding:24px;border-radius:12px;min-width:360px">
+    <div style="background:#16213e;padding:24px;border-radius:12px;min-width:380px">
       <h3 style="margin-bottom:16px;color:#e94560">添加声纹</h3>
       <label style="font-size:13px;color:#888">目标用户</label>
       <select id="vp-user" style="width:100%;background:#0f3460;color:#eee;border:1px solid #1a4a8a;padding:8px 12px;border-radius:6px;font-size:14px;outline:none;margin-bottom:16px;margin-top:4px"></select>
-      <label style="font-size:13px;color:#888">WAV 录音文件 (16kHz 单声道)</label>
+
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+        <button id="btn-record" onclick="toggleRecord()" style="background:#e94560;color:#eee;border:none;padding:10px 20px;border-radius:6px;cursor:pointer;font-size:14px;min-width:100px">🎤 录音</button>
+        <span id="rec-status" style="color:#888;font-size:13px">点击按钮开始录音</span>
+      </div>
+
+      <label style="font-size:13px;color:#888">或选择本地 WAV 文件</label>
       <input id="vp-file" type="file" accept=".wav" style="width:100%;background:#0f3460;color:#eee;border:1px solid #1a4a8a;padding:8px 12px;border-radius:6px;font-size:14px;outline:none;margin-bottom:16px;margin-top:4px">
       <div style="display:flex;gap:8px;justify-content:flex-end">
-        <button onclick="document.getElementById('dlg-vp').style.display='none'" style="background:#333;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">取消</button>
-        <button onclick="addVoiceprint()" style="background:#e94560;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">上传</button>
+        <button onclick="closeVpDlg()" style="background:#333;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">取消</button>
+        <button onclick="uploadVoiceprint()" style="background:#e94560;color:#eee;border:none;padding:8px 20px;border-radius:6px;cursor:pointer">上传</button>
       </div>
     </div>
   </div>
@@ -273,35 +281,89 @@ async function createUser() {
   } catch (e) { toast("创建失败: " + e); }
 }
 
+// ---- 浏览器录音 ----
+let mediaRecorder = null;
+let audioChunks = [];
+let recordedBlob = null;
+
+async function toggleRecord() {
+  const btn = document.getElementById("btn-record");
+  const status = document.getElementById("rec-status");
+
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    // 停止录音
+    mediaRecorder.stop();
+    btn.textContent = "🎤 录音";
+    btn.style.background = "#e94560";
+    status.textContent = "录音完成，点击上传提交";
+  } else {
+    // 开始录音
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      audioChunks = [];
+      recordedBlob = null;
+
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        recordedBlob = new Blob(audioChunks, { type: "audio/webm" });
+        stream.getTracks().forEach(t => t.stop());
+      };
+
+      mediaRecorder.start();
+      btn.textContent = "⏹ 停止";
+      btn.style.background = "#c0392b";
+      status.textContent = "正在录音...对着麦克风说话";
+    } catch (e) {
+      toast("无法访问麦克风: " + e.message);
+    }
+  }
+}
+
+function closeVpDlg() {
+  if (mediaRecorder && mediaRecorder.state === "recording") {
+    mediaRecorder.stop();
+  }
+  document.getElementById("dlg-vp").style.display = "none";
+  document.getElementById("btn-record").textContent = "🎤 录音";
+  document.getElementById("btn-record").style.background = "#e94560";
+  document.getElementById("rec-status").textContent = "点击按钮开始录音";
+  recordedBlob = null;
+}
+
 function showAddVoiceprint() {
-  // 填充用户下拉
   let opts = "";
   for (const u of allUsers) {
     const dn = u.name || "用户#" + u.id;
     opts += '<option value="' + u.id + '">' + esc(dn) + '</option>';
   }
-  if (!opts) {
-    toast("请先创建用户");
-    return;
-  }
+  if (!opts) { toast("请先创建用户"); return; }
   document.getElementById("vp-user").innerHTML = opts;
   document.getElementById("vp-file").value = "";
+  recordedBlob = null;
+  document.getElementById("rec-status").textContent = "点击按钮开始录音";
   document.getElementById("dlg-vp").style.display = "flex";
 }
 
-async function addVoiceprint() {
+async function uploadVoiceprint() {
   const uid = document.getElementById("vp-user").value;
-  const file = document.getElementById("vp-file").files[0];
-  if (!uid || !file) { toast("请选择用户和文件"); return; }
+  const fileInput = document.getElementById("vp-file");
   const fd = new FormData();
-  fd.append("file", file);
+
+  if (recordedBlob) {
+    // 使用录音
+    fd.append("file", recordedBlob, "recording.webm");
+  } else if (fileInput.files[0]) {
+    // 使用本地文件
+    fd.append("file", fileInput.files[0]);
+  } else {
+    toast("请先录音或选择文件"); return;
+  }
+
   try {
-    const res = await fetch("/api/users/" + uid + "/voiceprints", {
-      method: "POST",
-      body: fd
-    });
+    const res = await fetch("/api/users/" + uid + "/voiceprints", { method: "POST", body: fd });
     if (res.ok) {
-      document.getElementById("dlg-vp").style.display = "none";
+      closeVpDlg();
       toast("声纹已添加");
       loadPage(currentPage);
     } else {
@@ -371,16 +433,29 @@ async def api_list_user_voiceprints(user_id: int):
 
 @app.post("/api/users/{user_id}/voiceprints")
 async def api_add_voiceprint(user_id: int, file: UploadFile = File(...)):
-    """上传 WAV 文件，提取声纹并绑定到用户"""
+    """上传音频文件（WAV/webm），提取声纹并绑定到用户"""
     u = db.get_user(user_id)
     if not u:
         raise HTTPException(404, "用户不存在")
 
-    # 保存上传文件
+    content = await file.read()
     ts = time.strftime("%Y%m%d_%H%M%S")
-    path = f"recording_upload_{ts}_{user_id}.wav"
-    with open(path, "wb") as f:
-        f.write(await file.read())
+
+    # webm → wav 转换（浏览器录音格式）
+    if file.filename and file.filename.endswith(".webm") or file.content_type == "audio/webm":
+        tmp_webm = tempfile.mktemp(suffix=".webm")
+        with open(tmp_webm, "wb") as f:
+            f.write(content)
+        path = f"recording_upload_{ts}_{user_id}.wav"
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", tmp_webm, "-ar", "16000", "-ac", "1", "-f", "wav", path],
+            capture_output=True,
+        )
+        os.unlink(tmp_webm)
+    else:
+        path = f"recording_upload_{ts}_{user_id}.wav"
+        with open(path, "wb") as f:
+            f.write(content)
 
     # 提取声纹
     import voiceprint
