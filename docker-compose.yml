@@ -1,0 +1,19 @@
+version: "3.8"
+
+services:
+  paimon:
+    build: .
+    container_name: paimon_assist
+    privileged: true
+    devices:
+      - /dev/snd:/dev/snd
+    volumes:
+      - /var/run/pulse:/var/run/pulse
+      - ./models:/workdir/models
+      - ./.env:/workdir/.env:ro
+      - ./models/tts_cache:/workdir/models/tts_cache
+    environment:
+      - PULSE_RUNTIME_PATH=/var/run/pulse
+    ports:
+      - "8160:8160"
+    restart: unless-stopped
