@@ -1,9 +1,12 @@
 """LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite，支持 Tool Calling"""
 import json
+import logging
 import requests
 from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL, DEFAULT_CITY
 import db
 import llm_tools
+
+_log = logging.getLogger(__name__)
 
 _DEFAULT_RULES = (
     "你是派萌，一个可爱的AI助手。你的回答会通过语音播放给用户听。"
@@ -83,6 +86,11 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         data = _call_api(history, tools)
         choice = data["choices"][0]
         msg = choice["message"]
+        _log.info("LLM finish_reason=%s content=%s tool_calls=%s",
+            choice.get("finish_reason", "?"),
+            (msg.get("content") or "")[:50],
+            [tc["function"]["name"] for tc in (msg.get("tool_calls") or [])],
+        )
 
         # 处理 tool calls
         tool_calls = msg.get("tool_calls") or []
@@ -94,7 +102,9 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
             for tc in tool_calls:
                 fn_name = tc["function"]["name"]
                 fn_args = json.loads(tc["function"]["arguments"])
+                _log.info("Tool call: %s(%s)", fn_name, fn_args)
                 result = llm_tools.execute(fn_name, fn_args)
+                _log.info("Tool result: %s", result[:200] if result else "(empty)")
                 tool_msg = {
                     "role": "tool",
                     "tool_call_id": tc["id"],
