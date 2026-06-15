@@ -15,19 +15,25 @@ _SYSTEM = {
         "2. 不要使用markdown格式 "
         "3. 用中文回答，语气活泼可爱 "
         "4. 回复尽量简短在1-2句话内 "
-        "5. 使用口语化的表达方式。"
-        "6. 如果用户询问天气，使用 get_weather 工具查询，date 参数用 today 或 tomorrow。"
+        "5. 使用口语化的表达方式 "
+        "6. 数字用中文写（二十五而不是25），语音模型无法念阿拉伯数字 "
+        "7. 如果用户询问天气，使用 get_weather 工具查询，date 参数用 today 或 tomorrow。"
     ),
 }
 
 
 def _get_history(user_id: int) -> list[dict]:
-    """从 DB 加载对话历史，首次访问时自动写入 system prompt"""
+    """从 DB 加载对话历史，始终使用最新的 system prompt"""
     rows = db.load_history(user_id)
     if not rows:
         db.append_message(user_id, "system", _SYSTEM["content"])
         return [_SYSTEM]
-    return [{"role": r["role"], "content": r["content"]} for r in rows]
+    # 跳过 DB 中旧的 system prompt，始终用当前版本
+    return [_SYSTEM] + [
+        {"role": r["role"], "content": r["content"]}
+        for r in rows
+        if r["role"] != "system"
+    ]
 
 
 def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
