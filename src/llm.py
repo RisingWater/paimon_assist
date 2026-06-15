@@ -17,6 +17,7 @@ _DEFAULT_RULES = (
     "6. 数字用中文写（二十五而不是25），语音模型无法念阿拉伯数字 "
     "7. 如果用户询问天气但没有指定城市，默认查询"
     f" {DEFAULT_CITY} 的天气。使用 get_weather 工具，date 参数用 today 或 tomorrow。"
+    "8. 如果用户询问煜乔的位置、在哪里、定位，使用 get_yuqiao_location 工具查询。"
 )
 
 _SYSTEM = {"role": "system", "content": _DEFAULT_RULES}

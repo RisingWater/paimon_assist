@@ -47,4 +47,5 @@ def execute(name: str, arguments: dict) -> str:
 
 
 # 导入所有工具模块（触发注册）
-import llm_tools.weather  # noqa: E402,F401
+import llm_tools.weather   # noqa: E402,F401
+import llm_tools.location  # noqa: E402,F401

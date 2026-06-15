@@ -21,6 +21,12 @@ DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 # --- 天气 ---
 DEFAULT_CITY = os.getenv("DEFAULT_CITY", "福州")
 
+# --- QB 设备定位 ---
+QB_LOCATION_URL = os.getenv("QB_LOCATION_URL", "")
+QB_LOCATION_AUTHORITY = os.getenv("QB_LOCATION_AUTHORITY", "")
+QB_LOCATION_USERNAME = os.getenv("QB_LOCATION_USERNAME", "")
+QB_LOCATION_PASSWORD = os.getenv("QB_LOCATION_PASSWORD", "")
+
 # --- FunASR ---
 DISABLE_UPDATE = os.getenv("DISABLE_UPDATE", "0") == "1"
 
