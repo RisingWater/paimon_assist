@@ -12,6 +12,30 @@ from config import (
 _log = logging.getLogger(__name__)
 
 
+_BASE_HEADERS = {
+    "accept": "application/json, text/plain, */*",
+    "accept-language": "zh-CN,zh;q=0.9",
+    "client_type": "pc",
+    "content-type": "application/json",
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-origin",
+    "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+}
+
+
+def _new_session() -> requests.Session:
+    """创建带必要 headers 的 session"""
+    s = requests.Session()
+    s.headers.update(_BASE_HEADERS)
+    s.headers.update({
+        "authority": QB_LOCATION_AUTHORITY,
+        "origin": QB_LOCATION_URL,
+        "referer": f"{QB_LOCATION_URL}/login",
+    })
+    return s
+
+
 def _login(session: requests.Session) -> bool:
     """登录 QB 定位平台，成功后将 token 写入 session headers"""
     resp = session.post(
@@ -21,6 +45,7 @@ def _login(session: requests.Session) -> bool:
     )
     data = resp.json()
     if data.get("code") != 1000:
+        _log.error("登录失败 code=%s msg=%s", data.get("code"), data.get("msg", ""))
         return False
     token = data["data"]["token"]
     session.headers.update({"token": token})
@@ -87,15 +112,7 @@ def get_yuqiao_location(_args: dict = {}) -> str:
         if not d:
             return "未找到煜乔的设备"
 
-        s = requests.Session()
-        s.headers.update({
-            "authority": QB_LOCATION_AUTHORITY,
-            "accept": "application/json",
-            "content-type": "application/json",
-            "origin": QB_LOCATION_URL,
-            "referer": f"{QB_LOCATION_URL}/login",
-            "user-agent": "Mozilla/5.0",
-        })
+        s = _new_session()
         if not _login(s):
             s.close()
             return "查询位置失败：登录失败"
@@ -114,21 +131,16 @@ def get_yuqiao_location(_args: dict = {}) -> str:
 
 def _get_yuqiao_device() -> dict | None:
     """登录并获取煜乔的设备信息（共享逻辑）"""
-    s = requests.Session()
-    s.headers.update({
-        "authority": QB_LOCATION_AUTHORITY,
-        "accept": "application/json",
-        "content-type": "application/json",
-        "origin": QB_LOCATION_URL,
-        "referer": f"{QB_LOCATION_URL}/login",
-        "user-agent": "Mozilla/5.0",
-    })
+    s = _new_session()
     if not _login(s):
         s.close()
+        _log.error("登录失败")
         return None
+
     devices = _get_devices(s)
     s.close()
     if not devices:
+        _log.error("未找到设备")
         return None
     all_names = [d.get("name", "?") for d in devices]
     _log.info("QB devices: %s", all_names)
