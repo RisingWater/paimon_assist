@@ -34,12 +34,16 @@ def web_search(args: dict) -> str:
 
     try:
         result = subprocess.run(
-            [CLAUDE_BIN, "-p", prompt, "--output-format", "text"],
+            [
+                CLAUDE_BIN, "-p", prompt,
+                "--output-format", "text",
+                "--allowedTools", "WebSearch,WebFetch",
+                "--permission-mode", "bypassPermissions",
+            ],
             capture_output=True,
             text=True,
             encoding="utf-8",
             timeout=120,
-            env={**os.environ, "CLAUDE_CODE_PERMISSION_MODE": "bypassPermissions"},
         )
         output = (result.stdout or "").strip()
         if not output and result.stderr:
