@@ -47,8 +47,24 @@ export default function ChatTab({ users }: Props) {
     message.success("历史已清空")
   }
 
-  const roleColor: Record<string, string> = { user: "blue", assistant: "green" }
-  const roleLabel: Record<string, string> = { user: "用户", assistant: "派萌" }
+  const roleColor: Record<string, string> = { user: "blue", assistant: "green", tool: "orange" }
+  const roleLabel: Record<string, string> = { user: "用户", assistant: "派萌", tool: "工具" }
+
+  function fmtTool(content: string, role: string): string {
+    if (role !== "tool" && role !== "assistant") return content
+    try {
+      const parsed = JSON.parse(content)
+      if (parsed.role === "tool") return `🔧 ${parsed.content}`
+      if (parsed.tool_calls) {
+        return parsed.tool_calls.map((tc: { function: { name: string; arguments: string } }) =>
+          `🔧 ${tc.function.name}(${tc.function.arguments})`
+        ).join("\n")
+      }
+      return content
+    } catch {
+      return content
+    }
+  }
   const selectedName = userId ? users.find((u) => u.id === userId)?.name || `用户#${userId}` : ""
 
   return (
@@ -130,7 +146,7 @@ export default function ChatTab({ users }: Props) {
                 />
               ) : (
                 <Typography.Text style={{ whiteSpace: "pre-wrap", fontSize: 14 }}>
-                  {m.content}
+                  {fmtTool(m.content, m.role)}
                 </Typography.Text>
               )}
             </Card>

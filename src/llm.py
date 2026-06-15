@@ -84,18 +84,22 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         # 处理 tool calls
         tool_calls = msg.get("tool_calls") or []
         if tool_calls:
-            # 将 assistant 的 tool call 请求加入历史
+            # 记录 tool call 请求
+            db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             history.append(msg)
 
             for tc in tool_calls:
                 fn_name = tc["function"]["name"]
                 fn_args = json.loads(tc["function"]["arguments"])
                 result = llm_tools.execute(fn_name, fn_args)
-                history.append({
+                tool_msg = {
                     "role": "tool",
                     "tool_call_id": tc["id"],
                     "content": result,
-                })
+                }
+                history.append(tool_msg)
+                # 记录 tool 结果
+                db.append_message(user_id, "tool", json.dumps(tool_msg, ensure_ascii=False))
 
             # 让模型基于 tool 结果生成最终回复
             data = _call_api(history, tools)
