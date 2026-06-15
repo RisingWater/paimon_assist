@@ -18,6 +18,9 @@ DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_URL = os.getenv("DEEPSEEK_URL", "https://api.deepseek.com/v1/chat/completions")
 DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
+# --- 天气 ---
+DEFAULT_CITY = os.getenv("DEFAULT_CITY", "福州")
+
 # --- FunASR ---
 DISABLE_UPDATE = os.getenv("DISABLE_UPDATE", "0") == "1"
 
