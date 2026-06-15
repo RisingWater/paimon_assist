@@ -3,13 +3,9 @@ import os
 import subprocess
 import logging
 from llm_tools import register
+from config import CLAUDE_BIN
 
 _log = logging.getLogger(__name__)
-
-# Windows 上 Claude Code 安装路径
-_CLAUDE_BIN = os.path.expandvars(r"%APPDATA%\npm\claude.cmd")
-if not os.path.isfile(_CLAUDE_BIN):
-    _CLAUDE_BIN = "claude"  # fallback 到 PATH
 
 
 @register(
@@ -38,7 +34,7 @@ def web_search(args: dict) -> str:
 
     try:
         result = subprocess.run(
-            [_CLAUDE_BIN, "-p", prompt, "--output-format", "text"],
+            [CLAUDE_BIN, "-p", prompt, "--output-format", "text"],
             capture_output=True,
             text=True,
             timeout=120,
