@@ -1,6 +1,7 @@
-"""LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史"""
+"""LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite"""
 import requests
 from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
+import db
 
 _SYSTEM = {
     "role": "system",
@@ -16,14 +17,14 @@ _SYSTEM = {
     ),
 }
 
-# user_id → conversation history
-_histories: dict[int, list[dict]] = {}
-
 
 def _get_history(user_id: int) -> list[dict]:
-    if user_id not in _histories:
-        _histories[user_id] = [_SYSTEM]
-    return _histories[user_id]
+    """从 DB 加载对话历史，首次访问时自动写入 system prompt"""
+    rows = db.load_history(user_id)
+    if not rows:
+        db.append_message(user_id, "system", _SYSTEM["content"])
+        return [_SYSTEM]
+    return [{"role": r["role"], "content": r["content"]} for r in rows]
 
 
 def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
@@ -38,6 +39,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
 
     content = f"[说话人: {speaker}] {user_text}" if speaker else user_text
     history.append({"role": "user", "content": content})
+    db.append_message(user_id, "user", content)
 
     try:
         resp = requests.post(
@@ -57,6 +59,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         if resp.status_code == 200:
             reply = resp.json()["choices"][0]["message"]["content"]
             history.append({"role": "assistant", "content": reply})
+            db.append_message(user_id, "assistant", reply)
             return reply
         return f"API error: {resp.status_code}"
     except Exception as e:

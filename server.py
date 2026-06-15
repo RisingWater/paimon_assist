@@ -233,6 +233,35 @@ async def api_get_audio(vp_id: int):
     return FileResponse(path, media_type="audio/wav")
 
 
+# ---- 聊天历史 API ----
+
+@app.get("/api/users/{user_id}/history")
+async def api_get_history(user_id: int):
+    return db.load_history(user_id)
+
+
+class UpdateMessageBody(BaseModel):
+    content: str
+
+
+@app.put("/api/history/{msg_id}")
+async def api_update_message(msg_id: int, body: UpdateMessageBody):
+    db.update_message(msg_id, body.content)
+    return {"ok": True}
+
+
+@app.delete("/api/history/{msg_id}")
+async def api_delete_message(msg_id: int):
+    db.delete_message(msg_id)
+    return {"ok": True}
+
+
+@app.delete("/api/users/{user_id}/history")
+async def api_clear_history(user_id: int):
+    db.clear_history(user_id)
+    return {"ok": True}
+
+
 # ---- SPA fallback（必须放在所有路由之后） ----
 @app.get("/{path:path}")
 async def spa_fallback(path: str):

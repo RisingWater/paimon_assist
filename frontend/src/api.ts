@@ -26,6 +26,12 @@ export interface DetectUser {
   voiceprints: { id: number; sim: number }[]
 }
 
+export interface HistoryMessage {
+  id: number
+  role: string
+  content: string
+}
+
 type JsonHeaders = { "Content-Type": "application/json" }
 
 function post(url: string, body: unknown) {
@@ -80,4 +86,21 @@ export const api = {
       (r) => r.json()
     )
   },
+
+  // Chat history
+  getHistory: (userId: number): Promise<HistoryMessage[]> =>
+    fetch(`${BASE}/users/${userId}/history`).then((r) => r.json()),
+
+  updateMessage: (msgId: number, content: string) =>
+    fetch(`${BASE}/history/${msgId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" } as JsonHeaders,
+      body: JSON.stringify({ content }),
+    }),
+
+  deleteMessage: (msgId: number) =>
+    fetch(`${BASE}/history/${msgId}`, { method: "DELETE" }),
+
+  clearHistory: (userId: number) =>
+    fetch(`${BASE}/users/${userId}/history`, { method: "DELETE" }),
 }

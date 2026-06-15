@@ -26,6 +26,16 @@ def _connect() -> sqlite3.Connection:
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS chat_history (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER NOT NULL,
+            role       TEXT    NOT NULL,
+            content    TEXT    NOT NULL DEFAULT '',
+            created_at TEXT    DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        )
+    """)
     conn.commit()
     return conn
 
@@ -72,6 +82,7 @@ def get_user(user_id: int) -> "dict|None":
 def delete_user(user_id: int):
     conn = _connect()
     conn.execute("DELETE FROM voiceprints WHERE user_id=?", (user_id,))
+    conn.execute("DELETE FROM chat_history WHERE user_id=?", (user_id,))
     conn.execute("DELETE FROM users WHERE id=?", (user_id,))
     conn.commit()
     conn.close()
@@ -199,5 +210,58 @@ def get_voiceprint(vp_id: int) -> "dict|None":
 def delete_voiceprint(vp_id: int):
     conn = _connect()
     conn.execute("DELETE FROM voiceprints WHERE id=?", (vp_id,))
+    conn.commit()
+    conn.close()
+
+
+# ============================================================
+# 聊天历史操作
+# ============================================================
+
+def load_history(user_id: int) -> "list[dict]":
+    """加载用户的聊天历史，返回 [{"role": ..., "content": ...}, ...]"""
+    conn = _connect()
+    rows = conn.execute(
+        "SELECT id, role, content FROM chat_history WHERE user_id=? ORDER BY id",
+        (user_id,),
+    ).fetchall()
+    conn.close()
+    return [{"id": r[0], "role": r[1], "content": r[2]} for r in rows]
+
+
+def append_message(user_id: int, role: str, content: str):
+    """向用户聊天历史追加一条消息"""
+    conn = _connect()
+    conn.execute(
+        "INSERT INTO chat_history (user_id, role, content) VALUES (?, ?, ?)",
+        (user_id, role, content),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_message(msg_id: int, content: str):
+    """编辑一条聊天记录的内容"""
+    conn = _connect()
+    conn.execute(
+        "UPDATE chat_history SET content=? WHERE id=?",
+        (content, msg_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+def delete_message(msg_id: int):
+    """删除一条聊天记录"""
+    conn = _connect()
+    conn.execute("DELETE FROM chat_history WHERE id=?", (msg_id,))
+    conn.commit()
+    conn.close()
+
+
+def clear_history(user_id: int):
+    """清空用户的全部聊天历史"""
+    conn = _connect()
+    conn.execute("DELETE FROM chat_history WHERE user_id=?", (user_id,))
     conn.commit()
     conn.close()
