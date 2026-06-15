@@ -26,7 +26,7 @@ import asyncio
 import threading
 from config import THRESHOLD, VOICEPRINT_THRESHOLD
 import wakeword as ww
-import tts
+from vits_tts import tts
 import vad
 import voiceprint
 import stt

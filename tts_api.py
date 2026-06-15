@@ -59,14 +59,14 @@ async def text_to_speech(req: TTSRequest):
     # 调用 VITS（内部也会查缓存 + 写缓存）
     logger.info(f"TTS synthesize: {text[:30]}...")
     try:
-        audio = await vits_tts.synthesize_async(text, length_scale=req.length_scale)
+        audio = await vits_tts.tts.synthesize_async(text, length_scale=req.length_scale)
     except Exception as e:
         logger.error(f"VITS synthesis failed: {e}")
         raise HTTPException(status_code=500, detail=f"语音合成失败: {e}")
 
     # synthesize 内部已写缓存，直接拿路径
     path = _cache.get(text)
-    duration_ms = int(len(audio) / vits_tts.SAMPLE_RATE * 1000)
+    duration_ms = int(len(audio) / vits_tts.tts.sample_rate * 1000)
 
     return TTSResponse(cached=False, file=str(path), duration_ms=duration_ms)
 

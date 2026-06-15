@@ -17,7 +17,6 @@
 | `main.py` | 入口 + ONNX patch + 主循环编排 + `--web-only` | — |
 | `config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
 | `wakeword.py` | 唤醒词检测 | `create_listener()` |
-| `tts.py` | TTS 后端分发（vits / web） | `speak(text)`, `wake_ack()`, `load()` |
 | `vits_tts.py` | VITS 本地合成（Paimon 音色，22050Hz） | `synthesize(text)`, `speak(text)`, `wake_ack()` |
 | `vad.py` | VAD 录音，静音自动停止 | `record(counter) -> filename` |
 | `voiceprint.py` | 声纹提取 + 多声纹平均匹配 | `verify(wav_path) -> (user_id, info)` |
@@ -27,7 +26,6 @@
 | `server.py` | FastAPI Web 管理界面（用户/声纹/TTS） | 内嵌 HTML + REST API |
 | `tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
-| `web_tts.py` | HTTP TTS 后端（调用外部服务） | `speak(text)`, `wake_ack()` |
 | `vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
 
 ## 运行方式
@@ -73,8 +71,6 @@ numpy, python-dotenv
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `DEEPSEEK_API_KEY` | DeepSeek 密钥（必填） | — |
-| `TTS_BACKEND` | TTS 后端: "vits" 或 "web" | vits |
-| `TTS_URL` | Web TTS 服务地址 | `http://192.168.1.180:6018/api/tts/speak` |
 | `THRESHOLD` | 唤醒词灵敏度 | 0.25 |
 | `VOICEPRINT_THRESHOLD` | 声纹相似度阈值 | 0.5 |
 | `VAD_SILENCE_MS` | VAD 静音判定时间 | 800 |

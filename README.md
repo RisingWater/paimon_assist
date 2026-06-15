@@ -56,7 +56,6 @@ Web 管理界面：`http://localhost:8160`
 | `main.py` | 入口，ONNX 补丁，主循环，`--web-only` 参数 |
 | `config.py` | 加载 `.env`，导出全部配置 |
 | `wakeword.py` | 唤醒词检测（paimeng.onnx） |
-| `tts.py` | TTS 后端分发（vits / web） |
 | `vits_tts.py` | VITS 本地语音合成，Paimon 音色，22050Hz |
 | `vad.py` | VAD 录音，silero-vad，静音自动停止 |
 | `voiceprint.py` | 声纹提取与多声纹匹配（eres2netv2） |
@@ -73,7 +72,6 @@ Web 管理界面：`http://localhost:8160`
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `DEEPSEEK_API_KEY` | DeepSeek API 密钥 | — |
-| `TTS_BACKEND` | "vits"（本地）或 "web"（远程） | vits |
 | `TTS_URL` | Web TTS 地址 | `http://192.168.1.180:6018/api/tts/speak` |
 | `THRESHOLD` | 唤醒词灵敏度 | 0.25 |
 | `VOICEPRINT_THRESHOLD` | 声纹余弦相似度阈值 | 0.5 |
@@ -107,7 +105,6 @@ paimon_assist/
 ├── server.py              # Web 管理界面
 ├── config.py              # 配置
 ├── wakeword.py            # 唤醒词
-├── tts.py                 # TTS 分发
 ├── vits_tts.py            # VITS 合成
 ├── vad.py                 # VAD 录音
 ├── voiceprint.py          # 声纹
@@ -116,7 +113,6 @@ paimon_assist/
 ├── llm.py                 # DeepSeek 对话
 ├── tts_api.py             # TTS Web API
 ├── tts_cache.py           # TTS 缓存
-├── web_tts.py             # HTTP TTS 后端
 ├── vits/                  # VITS 模型代码
 ├── requirements.txt       # 依赖
 ├── .env.example           # 配置模板
