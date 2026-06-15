@@ -22,7 +22,7 @@ DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 DEFAULT_CITY = os.getenv("DEFAULT_CITY", "福州")
 
 # --- Claude Code CLI ---
-CLAUDE_BIN = os.getenv("CLAUDE_BIN", os.path.expandvars(r"%APPDATA%\npm\claude.cmd"))
+CLAUDE_BIN = os.path.expandvars(os.getenv("CLAUDE_BIN", r"%APPDATA%\npm\claude.cmd"))
 
 # --- QB 设备定位 ---
 QB_LOCATION_URL = os.getenv("QB_LOCATION_URL", "")
