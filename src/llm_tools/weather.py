@@ -25,6 +25,7 @@ _DESC_CN: dict[str, str] = {
     "Light drizzle": "毛毛雨",
     "Patchy light drizzle": "局部毛毛雨",
     "Light rain shower": "小阵雨",
+    "Rain shower": "阵雨",
     "Patchy light rain in area with thunder": "雷阵雨",
     "Moderate or heavy rain shower": "中到大阵雨",
     "Thundery outbreaks in nearby": "周边雷暴",
