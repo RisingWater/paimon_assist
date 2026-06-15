@@ -75,7 +75,8 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
 
     content = f"[说话人: {speaker}] {user_text}" if speaker else user_text
     history.append({"role": "user", "content": content})
-    db.append_message(user_id, "user", content)
+    if user_id:
+        db.append_message(user_id, "user", content)
 
     try:
         tools = llm_tools.get_schemas()
@@ -86,8 +87,8 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         # 处理 tool calls
         tool_calls = msg.get("tool_calls") or []
         if tool_calls:
-            # 记录 tool call 请求
-            db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
+            if user_id:
+                db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             history.append(msg)
 
             for tc in tool_calls:
@@ -100,8 +101,8 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                     "content": result,
                 }
                 history.append(tool_msg)
-                # 记录 tool 结果
-                db.append_message(user_id, "tool", json.dumps(tool_msg, ensure_ascii=False))
+                if user_id:
+                    db.append_message(user_id, "tool", json.dumps(tool_msg, ensure_ascii=False))
 
             # 让模型基于 tool 结果生成最终回复
             data = _call_api(history, tools)
@@ -111,7 +112,9 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         reply = msg.get("content", "")
         if reply:
             history.append({"role": "assistant", "content": reply})
-            db.append_message(user_id, "assistant", reply)
+            if user_id:
+                db.append_message(user_id, "assistant", reply)
         return reply or "（无回复）"
     except Exception as e:
-        return f"Request failed: {e}"
+        import traceback
+        return f"Request failed: {e}\n{traceback.format_exc()}"
