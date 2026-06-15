@@ -103,4 +103,8 @@ export const api = {
 
   clearHistory: (userId: number) =>
     fetch(`${BASE}/users/${userId}/history`, { method: "DELETE" }),
+
+  // Direct chat (bypass wakeword/STT)
+  chat: (text: string, userId: number, speaker: string): Promise<{ reply: string }> =>
+    post(`${BASE}/chat`, { text, user_id: userId, speaker }).then((r) => r.json()),
 }

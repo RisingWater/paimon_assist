@@ -262,6 +262,21 @@ async def api_clear_history(user_id: int):
     return {"ok": True}
 
 
+# ---- 快速对话（绕过唤醒/STT，直接测试 LLM + tool call） ----
+
+class ChatRequest(BaseModel):
+    text: str
+    user_id: int = 0
+    speaker: str = ""
+
+
+@app.post("/api/chat")
+async def api_chat(req: ChatRequest):
+    import llm
+    reply = llm.chat(req.text.strip(), req.user_id, req.speaker)
+    return {"reply": reply}
+
+
 # ---- SPA fallback（必须放在所有路由之后） ----
 @app.get("/{path:path}")
 async def spa_fallback(path: str):

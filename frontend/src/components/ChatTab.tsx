@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react"
-import { Button, Space, Typography, Card, Select, Input, App, Popconfirm, Tag, Empty } from "antd"
-import { DeleteOutlined, EditOutlined, ClearOutlined } from "@ant-design/icons"
+import { useEffect, useState, useRef } from "react"
+import { Button, Space, Typography, Card, Select, Input, App, Popconfirm, Tag, Empty, Spin } from "antd"
+import { DeleteOutlined, EditOutlined, ClearOutlined, SendOutlined } from "@ant-design/icons"
 import { api, type HistoryMessage, type User } from "../api"
 
 interface Props {
@@ -13,6 +13,9 @@ export default function ChatTab({ users }: Props) {
   const [msgs, setMsgs] = useState<HistoryMessage[]>([])
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editContent, setEditContent] = useState("")
+  const [inputText, setInputText] = useState("")
+  const [sending, setSending] = useState(false)
+  const msgEnd = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (userId) {
@@ -45,6 +48,27 @@ export default function ChatTab({ users }: Props) {
     await api.clearHistory(userId)
     setMsgs([])
     message.success("历史已清空")
+  }
+
+  async function handleSend() {
+    const text = inputText.trim()
+    if (!text || sending) return
+    setSending(true)
+    setInputText("")
+    try {
+      await api.chat(text, userId ?? 0, "")
+      message.success("回复已生成")
+      // 刷新聊天记录
+      if (userId) {
+        const data = await api.getHistory(userId)
+        setMsgs(data.filter((m) => m.role !== "system"))
+      }
+      msgEnd.current?.scrollIntoView({ behavior: "smooth" })
+    } catch {
+      message.error("发送失败")
+    } finally {
+      setSending(false)
+    }
   }
 
   const roleColor: Record<string, string> = { user: "blue", assistant: "green", tool: "orange" }
@@ -93,6 +117,27 @@ export default function ChatTab({ users }: Props) {
             {selectedName ? ` — ${selectedName}` : ""}
           </Typography.Text>
         )}
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <Input.TextArea
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onPressEnter={(e) => {
+            if (!e.shiftKey) { e.preventDefault(); handleSend() }
+          }}
+          placeholder="输入文字直接测试 LLM（绕过唤醒和语音）"
+          autoSize={{ minRows: 1, maxRows: 4 }}
+          style={{ flex: 1 }}
+        />
+        <Button
+          type="primary"
+          icon={sending ? <Spin size="small" /> : <SendOutlined />}
+          onClick={handleSend}
+          loading={sending}
+        >
+          发送
+        </Button>
       </div>
 
       {!userId ? (
