@@ -29,7 +29,7 @@ import wakeword as ww
 from vits_tts import tts
 import vad
 import voiceprint
-import stt
+from stt import stt
 import llm
 
 
