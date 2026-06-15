@@ -7,10 +7,6 @@ venv/
 # SenseVoiceSmall 模型（大文件，首次运行自动下载）
 models/iic/
 
-# VITS 模型（大文件）
-models/paimon.pth
-models/G_1434000.pth
-
 # 声纹数据库（首次运行自动生成）
 models/voiceprints.db
 
