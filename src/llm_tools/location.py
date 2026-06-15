@@ -1,4 +1,5 @@
 """QB 设备位置查询工具"""
+import logging
 import requests
 from llm_tools import register
 from config import (
@@ -7,6 +8,8 @@ from config import (
     QB_LOCATION_USERNAME,
     QB_LOCATION_PASSWORD,
 )
+
+_log = logging.getLogger(__name__)
 
 
 def _login(session: requests.Session) -> bool:
@@ -127,6 +130,8 @@ def _get_yuqiao_device() -> dict | None:
     s.close()
     if not devices:
         return None
+    all_names = [d.get("name", "?") for d in devices]
+    _log.info("QB devices: %s", all_names)
     yuqiao = [d for d in devices if "煜乔" in d.get("name", "")]
     return yuqiao[0] if yuqiao else None
 
@@ -150,3 +155,11 @@ def get_yuqiao_power(_args: dict = {}) -> str:
         return f"{name} 当前电量 {power}%"
     except Exception as e:
         return f"查询电量失败: {e}"
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    print("=== 煜乔位置 ===")
+    print(get_yuqiao_location())
+    print("\n=== 煜乔电量 ===")
+    print(get_yuqiao_power())
