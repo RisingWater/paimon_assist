@@ -86,4 +86,4 @@ fi
 
 # ---- 启动应用 ----
 echo "Starting 派萌助手..."
-exec python3 main.py
+exec python3 src/main.py

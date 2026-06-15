@@ -14,34 +14,35 @@
 
 | 文件 | 职责 | 对外接口 |
 |------|------|----------|
-| `main.py` | 入口 + ONNX patch + 主循环编排 + `--web-only` | — |
-| `config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
-| `wakeword.py` | 唤醒词检测 | `create_listener()` |
-| `vits_tts.py` | VITS 本地合成（Paimon 音色，22050Hz） | `synthesize(text)`, `speak(text)`, `wake_ack()` |
-| `vad.py` | VAD 录音，静音自动停止 | `record(counter) -> filename` |
-| `voiceprint.py` | 声纹提取 + 多声纹平均匹配 | `verify(wav_path) -> (user_id, info)` |
-| `db.py` | 用户表 + 声纹表（SQLite） | `create_user()`, `enroll()`, `find_best()` |
-| `stt.py` | 语音转文字（SenseVoiceSmall） | `load()`, `transcribe(wav_path) -> str` |
-| `llm.py` | DeepSeek 对话，按 user_id 隔离历史 | `chat(text, user_id, speaker) -> str` |
-| `server.py` | FastAPI REST API + serve 前端静态文件 | REST API + SPA fallback |
+| `src/main.py` | 入口 + ONNX patch + 主循环编排 + `--web-only` | — |
+| `src/config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
+| `src/wakeword.py` | 唤醒词检测 | `create_listener()` |
+| `src/vits_tts.py` | VITS 本地合成（Paimon 音色，22050Hz） | `synthesize(text)`, `speak(text)`, `wake_ack()` |
+| `src/vad.py` | VAD 录音，静音自动停止 | `record(counter) -> filename` |
+| `src/voiceprint.py` | 声纹提取 + 多声纹平均匹配 | `verify(wav_path) -> (user_id, info)` |
+| `src/db.py` | 用户表 + 声纹表（SQLite） | `create_user()`, `enroll()`, `find_best()` |
+| `src/stt.py` | 语音转文字（SenseVoiceSmall） | `load()`, `transcribe(wav_path) -> str` |
+| `src/llm.py` | DeepSeek 对话，按 user_id 隔离历史 | `chat(text, user_id, speaker) -> str` |
+| `src/server.py` | FastAPI REST API + serve 前端静态文件 | REST API + SPA fallback |
+| `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
+| `src/tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
+| `src/vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
 | `frontend/` | React + Vite + antd 前端 | bun run dev / bun run build |
-| `tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
-| `tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
-| `vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
+| `docker/` | Dockerfile + docker-compose + run.sh | 容器化部署 |
 
 ## 运行方式
 
 ```powershell
 # 完整模式（唤醒词 + STT + LLM + TTS）
-venv\Scripts\python main.py
+python src/main.py
 
 # 仅 Web 管理界面（不加载模型）
-venv\Scripts\python main.py --web-only
+python src/main.py --web-only
 ```
 
 Web 界面：
 - Dev: `cd frontend && bun run dev` → `localhost:5173`（proxy API 到 8160）
-- Prod: `python main.py --web-only` → `localhost:8160`（serve 构建好的静态文件）
+- Prod: `python src/main.py --web-only` → `localhost:8160`（serve 构建好的静态文件）
 - 构建: `cd frontend && bun run build`（产物在 frontend/dist/）
 
 ## 数据库
