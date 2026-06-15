@@ -18,3 +18,6 @@ unidecode
 phonemizer
 datasets
 onnxruntime
+Pillow
+simplejson
+sortedcontainers

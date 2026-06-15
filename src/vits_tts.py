@@ -145,6 +145,11 @@ class VitsTTS:
             self._play(audio)
         threading.Thread(target=_run, daemon=True).start()
 
+    def speak_sync(self, text: str):
+        """合成并播放（阻塞直到播放完成）"""
+        audio = self.synthesize(text)
+        self._play(audio)
+
     def _play(self, audio: np.ndarray):
         """通过 PyAudio 播放音频"""
         sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
@@ -162,8 +167,12 @@ class VitsTTS:
         pa.terminate()
 
     def wake_ack(self):
-        """唤醒应答：播放"我在" """
+        """唤醒应答（非阻塞）"""
         self.speak("我在呢")
+
+    def wake_ack_sync(self):
+        """唤醒应答（阻塞直到播放完成）"""
+        self.speak_sync("我在呢")
 
 
 # ============================================================

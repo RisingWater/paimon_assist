@@ -59,8 +59,8 @@ async def main():
             detection = await listener.wait_for_detection()
             print(f">>> WAKE! score={detection.confidence:.4f}")
 
-            tts.wake_ack()
-            await asyncio.sleep(1.5)
+            # 同步播放"我在呢"，播完立即开始录音
+            await asyncio.to_thread(tts.wake_ack_sync)
 
             # 1. 录音
             filename = await asyncio.to_thread(vad.record, counter)
@@ -71,7 +71,6 @@ async def main():
                 speaker = ""
                 print(f"  Voiceprint: ENROLLED (user_id={user_id})")
             else:
-                # "张三:0.92" → speaker="张三", sim="0.92"
                 speaker = info.rsplit(":", 1)[0]
                 sim = info.split(":")[-1]
                 print(f"  Voiceprint: {speaker} user_id={user_id} sim={sim}")
@@ -81,12 +80,13 @@ async def main():
             text = await asyncio.to_thread(stt.transcribe, filename)
             print(f"-> '{text}'")
 
-            # 4. LLM（按 user_id 维护独立对话历史）
+            # 4. LLM + 同步播放回复
             if text.strip():
                 print(f"  DeepSeek...", end=" ", flush=True)
                 reply = await asyncio.to_thread(llm.chat, text, user_id or 0, speaker)
                 print(f"-> '{reply}'")
-                tts.speak(reply)
+                await asyncio.to_thread(tts.speak_sync, reply)
+            # 没说话 → 直接回到唤醒词检测
 
             print(f"  Saved: {filename}\n")
             counter += 1
