@@ -37,12 +37,13 @@ def web_search(args: dict) -> str:
             [CLAUDE_BIN, "-p", prompt, "--output-format", "text"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
             timeout=120,
             env={**os.environ, "CLAUDE_CODE_SAFE_MODE": "1"},
         )
-        output = result.stdout.strip()
+        output = (result.stdout or "").strip()
         if not output and result.stderr:
-            return f"搜索失败：{result.stderr[:300]}"
+            return f"搜索失败：{(result.stderr or '')[:300]}"
         return output or "搜索未返回结果"
     except subprocess.TimeoutExpired:
         return "搜索超时，请稍后重试"
