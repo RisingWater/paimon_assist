@@ -133,7 +133,7 @@ def _get_yuqiao_device() -> dict | None:
 
 @register(
     name="get_yuqiao_power",
-    description="查询煜乔通话器的剩余电量。返回电量百分比。",
+    description="查询煜乔的通话器剩余电量，返回电量百分比。",
     parameters={
         "type": "object",
         "properties": {},

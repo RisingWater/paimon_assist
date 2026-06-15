@@ -18,7 +18,7 @@ _DEFAULT_RULES = (
     "7. 如果用户询问天气但没有指定城市，默认查询"
     f" {DEFAULT_CITY} 的天气。使用 get_weather 工具，date 参数用 today 或 tomorrow。"
     "8. 如果用户询问煜乔的位置、在哪里、定位，使用 get_yuqiao_location 工具；"
-    "如果询问煜乔的电话手表电量、还剩多少电，使用 get_yuqiao_power 工具。"
+    "如果询问煜乔的通话器电量、还剩多少电，使用 get_yuqiao_power 工具。"
 )
 
 _SYSTEM = {"role": "system", "content": _DEFAULT_RULES}
