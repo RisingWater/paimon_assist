@@ -111,9 +111,10 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         # 保存 LLM 调用工具前的友好提示语（如"让我查一下哦"）
         tool_prefix = (msg.get("content") or "").strip()
         if tool_calls:
+            if user_id:
+                # 存完整 JSON，保证重新加载时 tool_calls 结构不丢失
+                db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             if tool_prefix:
-                if user_id:
-                    db.append_message(user_id, "assistant", tool_prefix)
                 # 后台播放提示语，不阻塞搜索
                 try:
                     from vits_tts import tts as _tts
