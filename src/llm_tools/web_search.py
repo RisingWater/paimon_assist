@@ -1,9 +1,15 @@
 """网络搜索工具 — 通过 Claude Code CLI 进行联网搜索"""
+import os
 import subprocess
 import logging
 from llm_tools import register
 
 _log = logging.getLogger(__name__)
+
+# Windows 上 Claude Code 安装路径
+_CLAUDE_BIN = os.path.expandvars(r"%APPDATA%\npm\claude.cmd")
+if not os.path.isfile(_CLAUDE_BIN):
+    _CLAUDE_BIN = "claude"  # fallback 到 PATH
 
 
 @register(
@@ -32,10 +38,11 @@ def web_search(args: dict) -> str:
 
     try:
         result = subprocess.run(
-            ["claude", "-p", prompt, "--output-format", "text"],
+            [_CLAUDE_BIN, "-p", prompt, "--output-format", "text"],
             capture_output=True,
             text=True,
             timeout=120,
+            env={**os.environ, "CLAUDE_CODE_SAFE_MODE": "1"},
         )
         output = result.stdout.strip()
         if not output and result.stderr:
