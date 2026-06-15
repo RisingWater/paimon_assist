@@ -1,6 +1,7 @@
 """LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite，支持 Tool Calling"""
 import json
 import logging
+from datetime import datetime
 import requests
 from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL, DEFAULT_CITY
 import db
@@ -8,7 +9,10 @@ import llm_tools
 
 _log = logging.getLogger(__name__)
 
+_TODAY = datetime.now().strftime("%Y年%m月%d日 %A")
+
 _DEFAULT_RULES = (
+    f"今天是{_TODAY}。"
     "你是派萌，一个可爱的AI助手。你的回答会通过语音播放给用户听。"
     "每条用户消息前会标注说话人的名字，你可以根据名字来称呼对方。"
     "规则："
