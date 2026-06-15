@@ -2,16 +2,18 @@ version: "3.8"
 
 services:
   paimon:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: paimon_assist
     privileged: true
     devices:
       - /dev/snd:/dev/snd
     volumes:
       - /var/run/pulse:/var/run/pulse
-      - ./models:/workdir/models
-      - ./.env:/workdir/.env:ro
-      - ./models/tts_cache:/workdir/models/tts_cache
+      - ../models:/workdir/models
+      - ../.env:/workdir/.env:ro
+      - ../models/tts_cache:/workdir/models/tts_cache
     environment:
       - PULSE_RUNTIME_PATH=/var/run/pulse
     ports:
