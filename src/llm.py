@@ -22,8 +22,8 @@ _DEFAULT_RULES = (
     f" {DEFAULT_CITY} 的天气。使用 get_weather 工具，date 参数用 today 或 tomorrow。"
     "8. 如果用户询问煜乔的位置、在哪里、定位，使用 get_yuqiao_location 工具；"
     "如果询问煜乔的通话器电量、还剩多少电，使用 get_yuqiao_power 工具。"
-    "9. 如果需要联网搜索，使用 web_search 工具。调用前先给用户一句提示语，"
-    "比如'让我查一下哦~'、'我搜一下哈'，自然地告诉用户正在搜索。"
+    "9. web_search 仅用于查询最新消息、实时数据、新闻事件等超出你知识范围的内容。"
+    "常识、历史、科学等已知知识不要搜索。调用前先自然地告诉用户你要查一下。"
 )
 
 _SYSTEM = {"role": "system", "content": _DEFAULT_RULES}

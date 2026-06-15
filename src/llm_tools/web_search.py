@@ -15,8 +15,8 @@ if not os.path.isfile(_CLAUDE_BIN):
 @register(
     name="web_search",
     description=(
-        "使用联网搜索获取最新信息。当用户询问实时信息、新闻、或需要查证的事实，"
-        "以及任何你知识截止日期之后发生的事件时使用此工具。"
+        "仅用于查询最新时效性信息：新闻、实时数据、近期事件。"
+        "常识、历史、科学、编程等知识类问题不要调用此工具。"
     ),
     parameters={
         "type": "object",
