@@ -79,8 +79,40 @@ def _get_address(session: requests.Session, device: dict) -> str | None:
     },
 )
 def get_yuqiao_location(_args: dict = {}) -> str:
-    session = requests.Session()
-    session.headers.update({
+    try:
+        d = _get_yuqiao_device()
+        if not d:
+            return "未找到煜乔的设备"
+
+        s = requests.Session()
+        s.headers.update({
+            "authority": QB_LOCATION_AUTHORITY,
+            "accept": "application/json",
+            "content-type": "application/json",
+            "origin": QB_LOCATION_URL,
+            "referer": f"{QB_LOCATION_URL}/login",
+            "user-agent": "Mozilla/5.0",
+        })
+        if not _login(s):
+            s.close()
+            return "查询位置失败：登录失败"
+
+        name = d["name"]
+        power = d.get("power", "?")
+        addr = _get_address(s, d)
+        s.close()
+
+        if addr:
+            return f"{name}（电量 {power}%）— {addr}"
+        return f"{name}（电量 {power}%）— 地址获取失败"
+    except Exception as e:
+        return f"查询位置失败: {e}"
+
+
+def _get_yuqiao_device() -> dict | None:
+    """登录并获取煜乔的设备信息（共享逻辑）"""
+    s = requests.Session()
+    s.headers.update({
         "authority": QB_LOCATION_AUTHORITY,
         "accept": "application/json",
         "content-type": "application/json",
@@ -88,28 +120,33 @@ def get_yuqiao_location(_args: dict = {}) -> str:
         "referer": f"{QB_LOCATION_URL}/login",
         "user-agent": "Mozilla/5.0",
     })
+    if not _login(s):
+        s.close()
+        return None
+    devices = _get_devices(s)
+    s.close()
+    if not devices:
+        return None
+    yuqiao = [d for d in devices if "煜乔" in d.get("name", "")]
+    return yuqiao[0] if yuqiao else None
 
+
+@register(
+    name="get_yuqiao_power",
+    description="查询煜乔通话器的剩余电量。返回电量百分比。",
+    parameters={
+        "type": "object",
+        "properties": {},
+        "required": [],
+    },
+)
+def get_yuqiao_power(_args: dict = {}) -> str:
     try:
-        if not _login(session):
-            return "查询位置失败：登录失败"
-
-        devices = _get_devices(session)
-        if not devices:
-            return "暂无设备数据"
-
-        # 只查煜乔的设备
-        yuqiao = [d for d in devices if "煜乔" in d.get("name", "")]
-        if not yuqiao:
+        d = _get_yuqiao_device()
+        if not d:
             return "未找到煜乔的设备"
-
-        d = yuqiao[0]
         name = d["name"]
         power = d.get("power", "?")
-        addr = _get_address(session, d)
-        if addr:
-            return f"{name}（电量 {power}%）— {addr}"
-        return f"{name}（电量 {power}%）— 地址获取失败"
+        return f"{name} 当前电量 {power}%"
     except Exception as e:
-        return f"查询位置失败: {e}"
-    finally:
-        session.close()
+        return f"查询电量失败: {e}"
