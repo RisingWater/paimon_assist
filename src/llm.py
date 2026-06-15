@@ -1,7 +1,9 @@
-"""LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite"""
+"""LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite，支持 Tool Calling"""
+import json
 import requests
 from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
 import db
+import llm_tools
 
 _SYSTEM = {
     "role": "system",
@@ -14,6 +16,7 @@ _SYSTEM = {
         "3. 用中文回答，语气活泼可爱 "
         "4. 回复尽量简短在1-2句话内 "
         "5. 使用口语化的表达方式。"
+        "6. 如果用户询问天气，使用 get_weather 工具查询，date 参数用 today 或 tomorrow。"
     ),
 }
 
@@ -27,8 +30,33 @@ def _get_history(user_id: int) -> list[dict]:
     return [{"role": r["role"], "content": r["content"]} for r in rows]
 
 
+def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
+    """调用 DeepSeek API，返回完整响应 JSON"""
+    body = {
+        "model": DEEPSEEK_MODEL,
+        "messages": messages,
+        "max_tokens": 200,
+        "temperature": 0.7,
+    }
+    if tools:
+        body["tools"] = tools
+
+    resp = requests.post(
+        DEEPSEEK_URL,
+        headers={
+            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+            "Content-Type": "application/json",
+        },
+        json=body,
+        timeout=15,
+    )
+    if resp.status_code != 200:
+        raise RuntimeError(f"API error: {resp.status_code}")
+    return resp.json()
+
+
 def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
-    """发送消息到 DeepSeek，返回回复文本。
+    """发送消息到 DeepSeek，返回回复文本。支持自动 tool calling。
 
     Args:
         user_text: 用户说的话
@@ -42,25 +70,36 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
     db.append_message(user_id, "user", content)
 
     try:
-        resp = requests.post(
-            DEEPSEEK_URL,
-            headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": DEEPSEEK_MODEL,
-                "messages": history,
-                "max_tokens": 200,
-                "temperature": 0.7,
-            },
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            reply = resp.json()["choices"][0]["message"]["content"]
+        tools = llm_tools.get_schemas()
+        data = _call_api(history, tools)
+        choice = data["choices"][0]
+        msg = choice["message"]
+
+        # 处理 tool calls
+        tool_calls = msg.get("tool_calls") or []
+        if tool_calls:
+            # 将 assistant 的 tool call 请求加入历史
+            history.append(msg)
+
+            for tc in tool_calls:
+                fn_name = tc["function"]["name"]
+                fn_args = json.loads(tc["function"]["arguments"])
+                result = llm_tools.execute(fn_name, fn_args)
+                history.append({
+                    "role": "tool",
+                    "tool_call_id": tc["id"],
+                    "content": result,
+                })
+
+            # 让模型基于 tool 结果生成最终回复
+            data = _call_api(history, tools)
+            choice = data["choices"][0]
+            msg = choice["message"]
+
+        reply = msg.get("content", "")
+        if reply:
             history.append({"role": "assistant", "content": reply})
             db.append_message(user_id, "assistant", reply)
-            return reply
-        return f"API error: {resp.status_code}"
+        return reply or "（无回复）"
     except Exception as e:
         return f"Request failed: {e}"
