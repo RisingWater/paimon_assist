@@ -23,7 +23,8 @@
 | `db.py` | 用户表 + 声纹表（SQLite） | `create_user()`, `enroll()`, `find_best()` |
 | `stt.py` | 语音转文字（SenseVoiceSmall） | `load()`, `transcribe(wav_path) -> str` |
 | `llm.py` | DeepSeek 对话，按 user_id 隔离历史 | `chat(text, user_id, speaker) -> str` |
-| `server.py` | FastAPI Web 管理界面（用户/声纹/TTS） | 内嵌 HTML + REST API |
+| `server.py` | FastAPI REST API + serve 前端静态文件 | REST API + SPA fallback |
+| `frontend/` | React + Vite + antd 前端 | bun run dev / bun run build |
 | `tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
 | `vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
@@ -38,7 +39,10 @@ venv\Scripts\python main.py
 venv\Scripts\python main.py --web-only
 ```
 
-Web 界面：`http://localhost:8160` — 用户管理、声纹上传/录音/检测、TTS API。
+Web 界面：
+- Dev: `cd frontend && bun run dev` → `localhost:5173`（proxy API 到 8160）
+- Prod: `python main.py --web-only` → `localhost:8160`（serve 构建好的静态文件）
+- 构建: `cd frontend && bun run build`（产物在 frontend/dist/）
 
 ## 数据库
 

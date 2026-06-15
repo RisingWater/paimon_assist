@@ -17,3 +17,4 @@ pyaudio
 unidecode
 phonemizer
 datasets
+onnxruntime

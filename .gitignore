@@ -20,6 +20,10 @@ models/tts_cache/
 # 录音文件
 *.wav
 
+# Frontend build output
+frontend/dist/
+frontend/node_modules/
+
 # Python
 __pycache__/
 *.pyc
