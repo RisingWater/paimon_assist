@@ -33,12 +33,23 @@ def _get_history(user_id: int) -> list[dict]:
     if not rows:
         db.append_message(user_id, "system", _SYSTEM["content"])
         return [_SYSTEM]
-    # 跳过 DB 中旧的 system prompt，始终用当前版本
-    return [_SYSTEM] + [
-        {"role": r["role"], "content": r["content"]}
-        for r in rows
-        if r["role"] != "system"
-    ]
+
+    messages = [_SYSTEM]
+    for r in rows:
+        if r["role"] == "system":
+            continue
+        content = r["content"]
+        # 还原结构化消息（tool_calls / tool_call_id 等字段在 DB 中以 JSON 存储）
+        if content.startswith("{") and content.endswith("}"):
+            try:
+                parsed = json.loads(content)
+                if isinstance(parsed, dict) and "role" in parsed:
+                    messages.append(parsed)
+                    continue
+            except (json.JSONDecodeError, TypeError):
+                pass
+        messages.append({"role": r["role"], "content": content})
+    return messages
 
 
 def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
@@ -62,6 +73,7 @@ def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
         timeout=15,
     )
     if resp.status_code != 200:
+        _log.error("DeepSeek API %d: %s", resp.status_code, resp.text[:500])
         raise RuntimeError(f"API error: {resp.status_code}")
     return resp.json()
 
