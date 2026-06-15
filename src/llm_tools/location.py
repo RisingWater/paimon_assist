@@ -74,7 +74,9 @@ def _get_address(session: requests.Session, device: dict) -> str | None:
         timeout=10,
     )
     detail_data = detail.json()
+    _log.info("getCurrPointInfoAll: code=%s", detail_data.get("code"))
     if detail_data.get("code") != 1000 or not detail_data.get("data"):
+        _log.error("getCurrPointInfoAll 失败: %s", detail_data.get("msg", ""))
         return None
     model_id = detail_data["data"][0].get("modelId")
 
@@ -85,14 +87,16 @@ def _get_address(session: requests.Session, device: dict) -> str | None:
             "pointList": [{
                 "lat": device["latitude"],
                 "lon": device["longitude"],
-                "infoType": device["infoType"],
+                "infoType": device.get("infoType", 3),
                 "modelId": model_id,
             }]
         },
         timeout=10,
     )
     addr_data = addr.json()
+    _log.info("batchAddress: code=%s data=%s", addr_data.get("code"), addr_data.get("data"))
     if addr_data.get("code") != 1000 or not addr_data.get("data"):
+        _log.error("batchAddress 失败: %s", addr_data.get("msg", ""))
         return None
     return addr_data["data"][0]
 
@@ -144,7 +148,7 @@ def _get_yuqiao_device() -> dict | None:
         return None
     all_names = [d.get("name", "?") for d in devices]
     _log.info("QB devices: %s", all_names)
-    yuqiao = [d for d in devices if "煜乔" in d.get("name", "")]
+    yuqiao = [d for d in devices if "乔宝" in d.get("name", "")]
     return yuqiao[0] if yuqiao else None
 
 
