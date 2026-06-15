@@ -8,7 +8,7 @@ from config import DISABLE_UPDATE
 class STT:
     """FunASR SenseVoiceSmall 语音转文字引擎"""
 
-    def __init__(self, model_path: str = "models/iic/SenseVoiceSmall"):
+    def __init__(self, model_path: str = "iic/SenseVoiceSmall"):
         self.model_path = model_path
         self._model = None
 
