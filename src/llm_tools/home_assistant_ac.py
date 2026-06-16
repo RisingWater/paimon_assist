@@ -157,3 +157,37 @@ def control_ac(args: dict) -> str:
 
     except Exception as e:
         return f"空调控制失败：{e}"
+
+
+if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
+    import sys
+
+    if len(sys.argv) < 2:
+        print("Usage: python -m llm_tools.home_assistant_ac <command> [args]")
+        print("  list                    列出所有空调")
+        print("  on    [name]            开机")
+        print("  off   [name]            关机")
+        print("  temp  <度数> [name]     设置温度")
+        print("  mode  <模式> [name]     切换模式 (cool/heat/auto/dry/fan_only)")
+        sys.exit(1)
+
+    cmd = sys.argv[1]
+    if cmd == "list":
+        print(list_ac())
+    elif cmd == "on":
+        print(control_ac({"action": "on", "name": sys.argv[2] if len(sys.argv) > 2 else ""}))
+    elif cmd == "off":
+        print(control_ac({"action": "off", "name": sys.argv[2] if len(sys.argv) > 2 else ""}))
+    elif cmd == "temp":
+        if len(sys.argv) < 3:
+            print("请指定温度，如 temp 26 客厅")
+        else:
+            print(control_ac({"action": "set_temp", "value": sys.argv[2], "name": sys.argv[3] if len(sys.argv) > 3 else ""}))
+    elif cmd == "mode":
+        if len(sys.argv) < 3:
+            print("请指定模式，如 mode cool 客厅")
+        else:
+            print(control_ac({"action": "set_mode", "value": sys.argv[2], "name": sys.argv[3] if len(sys.argv) > 3 else ""}))
+    else:
+        print(f"未知命令: {cmd}")

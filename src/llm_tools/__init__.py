@@ -50,4 +50,4 @@ def execute(name: str, arguments: dict) -> str:
 import llm_tools.weather        # noqa: E402,F401
 import llm_tools.location       # noqa: E402,F401
 import llm_tools.web_search     # noqa: E402,F401
-import llm_tools.home_assistant # noqa: E402,F401
+import llm_tools.home_assistant_ac # noqa: E402,F401
