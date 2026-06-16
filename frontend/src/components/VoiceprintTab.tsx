@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Button, Space, Typography, Card, Tag, App, Spin, Empty } from "antd"
+import { Button, Space, Typography, Card, App, Spin, Empty } from "antd"
 import { AudioOutlined, SearchOutlined, HolderOutlined } from "@ant-design/icons"
 import { api, type User, type Voiceprint } from "../api"
 import AddVoiceprintDialog from "../dialogs/AddVoiceprintDialog"
@@ -122,24 +122,37 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
                 </Typography.Text>
               }
             >
-              <Space wrap>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
                 {(vpsCache[u.id] || []).map((vp) => (
-                  <Tag
+                  <div
                     key={vp.id}
-                    closable
                     draggable
                     onDragStart={(e) => onDragStart(e, vp.id, u.id)}
-                    onClose={() => handleDeleteVp(vp.id)}
-                    style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "grab" }}
+                    style={{
+                      background: "#f5f5f5",
+                      borderRadius: 6,
+                      padding: "6px 8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      cursor: "grab",
+                      border: "1px solid #d9d9d9",
+                      minWidth: 0,
+                    }}
                   >
-                    <HolderOutlined style={{ color: "#999", cursor: "grab" }} />
-                    <span>#{vp.id}</span>
+                    <HolderOutlined style={{ color: "#999", cursor: "grab", flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: "#666", flexShrink: 0 }}>#{vp.id}</span>
                     {vp.audio_path && (
-                      <audio controls src={`/api/voiceprints/${vp.id}/audio`} style={{ height: 20, width: 110 }} />
+                      <audio controls src={`/api/voiceprints/${vp.id}/audio`} style={{ height: 20, flex: 1, minWidth: 0 }} />
                     )}
-                  </Tag>
+                    <span
+                      onClick={(e) => { e.stopPropagation(); handleDeleteVp(vp.id) }}
+                      style={{ cursor: "pointer", color: "#999", fontSize: 14, flexShrink: 0, padding: "0 2px" }}
+                      title="删除"
+                    >×</span>
+                  </div>
                 ))}
-              </Space>
+              </div>
             </Card>
           ))
         )}

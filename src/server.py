@@ -98,20 +98,21 @@ async def api_add_voiceprint(user_id: int, file: UploadFile = File(...)):
 
     content = await file.read()
     ts = time.strftime("%Y%m%d_%H%M%S")
+    user_dir = f"recordings/{user_id}"
+    os.makedirs(user_dir, exist_ok=True)
+    path = f"{user_dir}/upload_{ts}.wav"
 
     # webm → wav 转换（浏览器录音格式）
     if file.filename and file.filename.endswith(".webm") or file.content_type == "audio/webm":
         tmp_webm = tempfile.mktemp(suffix=".webm")
         with open(tmp_webm, "wb") as f:
             f.write(content)
-        path = f"recording_upload_{ts}_{user_id}.wav"
         subprocess.run(
             ["ffmpeg", "-y", "-i", tmp_webm, "-ar", "16000", "-ac", "1", "-f", "wav", path],
             capture_output=True,
         )
         os.unlink(tmp_webm)
     else:
-        path = f"recording_upload_{ts}_{user_id}.wav"
         with open(path, "wb") as f:
             f.write(content)
 

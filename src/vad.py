@@ -1,10 +1,13 @@
 """VAD 录音 — 检测到静音后自动停止"""
+import os
 import time
 import wave
 import pyaudio
 import numpy as np
 from silero_vad import load_silero_vad, get_speech_timestamps
 from config import SAMPLE_RATE, VAD_SILENCE_MS, MAX_RECORD_SECONDS
+
+RECORDINGS_DIR = "recordings"
 
 
 def record(counter: int) -> str:
@@ -61,7 +64,8 @@ def record(counter: int) -> str:
 
     all_audio = b"".join(frames)
     duration = len(all_audio) / (2 * SAMPLE_RATE)
-    filename = f"recording_{time.strftime('%Y%m%d_%H%M%S')}_{counter}.wav"
+    os.makedirs(RECORDINGS_DIR, exist_ok=True)
+    filename = f"{RECORDINGS_DIR}/recording_{time.strftime('%Y%m%d_%H%M%S')}_{counter}.wav"
 
     wf = wave.open(filename, "wb")
     wf.setnchannels(1)

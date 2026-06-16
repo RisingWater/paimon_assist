@@ -215,11 +215,27 @@ def delete_voiceprint(vp_id: int):
 
 
 def move_voiceprint(vp_id: int, target_user_id: int):
-    """将声纹移动到另一个用户"""
+    """将声纹移动到另一个用户，同时移动 WAV 文件"""
     conn = _connect()
+    vp = conn.execute("SELECT audio_path FROM voiceprints WHERE id=?", (vp_id,)).fetchone()
     conn.execute("UPDATE voiceprints SET user_id=? WHERE id=?", (target_user_id, vp_id))
     conn.commit()
     conn.close()
+    # 移动录音文件
+    if vp and vp[0]:
+        import os as _os
+        import shutil as _shutil
+        old_path = vp[0]
+        if _os.path.isfile(old_path):
+            dest_dir = _os.path.join("recordings", str(target_user_id))
+            _os.makedirs(dest_dir, exist_ok=True)
+            dest = _os.path.join(dest_dir, _os.path.basename(old_path))
+            _shutil.move(old_path, dest)
+            # 更新 DB 中的路径
+            conn = _connect()
+            conn.execute("UPDATE voiceprints SET audio_path=? WHERE id=?", (dest, vp_id))
+            conn.commit()
+            conn.close()
 
 
 # ============================================================
