@@ -98,16 +98,16 @@ def list_ac(_args: dict = {}) -> str:
 @register(
     name="control_ac",
     description=(
-        "控制指定的空调。必须先调 list_ac 获取空调名称，再用此工具操作。"
+        "控制指定的空调。必须先调 list_ac 获取空调名称。"
+        "name 参数必填，不可省略。未匹配到空调会列出可选名称。"
         "支持开关、设置温度（默认制冷）、切换模式。"
-        "执行后返回该空调最新状态。"
     ),
     parameters={
         "type": "object",
         "properties": {
             "name": {
                 "type": "string",
-                "description": "空调名称或位置，如'客厅'、'主卧'。留空则控制全部或第一台。",
+                "description": "空调名称（必填），如'客厅'、'主卧'、'乔宝'。不可为空。",
             },
             "action": {
                 "type": "string",
@@ -128,14 +128,14 @@ def control_ac(args: dict) -> str:
     value = args.get("value", "")
 
     try:
-        entity_id = _find_entity(name) if name else None
-        if not entity_id:
-            if name:
-                return f"未找到名称包含'{name}'的空调"
+        if not name:
             acs = _list_climate_entities()
-            if not acs:
-                return "没有找到空调设备"
-            entity_id = acs[0]["entity_id"]
+            names = [a["name"] for a in acs]
+            return f"请指定要操作哪台空调：{', '.join(names)}"
+
+        entity_id = _find_entity(name)
+        if not entity_id:
+            return f"未找到名称包含'{name}'的空调"
 
         if action == "on":
             _call_service("climate", "turn_on", entity_id)
