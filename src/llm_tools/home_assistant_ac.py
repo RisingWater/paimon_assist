@@ -98,10 +98,9 @@ def list_ac(_args: dict = {}) -> str:
 @register(
     name="control_ac",
     description=(
-        "控制指定的空调，执行后自动返回该空调的最新状态。"
-        "调用前不需要先 list_ac，直接控制即可。"
+        "控制指定的空调。必须先调 list_ac 获取空调名称，再用此工具操作。"
         "支持开关、设置温度（默认制冷）、切换模式。"
-        "可通过空调名称模糊匹配，如未指定则控制第一台。"
+        "执行后返回该空调最新状态。"
     ),
     parameters={
         "type": "object",
