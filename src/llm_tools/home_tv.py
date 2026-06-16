@@ -84,7 +84,23 @@ def control_tv(args: dict) -> str:
 if __name__ == "__main__":
     import sys
     logging.basicConfig(level=logging.INFO)
+
     if len(sys.argv) < 2:
-        print("Usage: python -m llm_tools.home_tv on|off")
+        print("Usage: python -m llm_tools.home_tv on|off|show")
         sys.exit(1)
-    print(control_tv({"action": sys.argv[1]}))
+
+    cmd = sys.argv[1]
+    if cmd == "show":
+        resp = requests.get(
+            f"{HOME_ASSISTANT_URL}/api/states",
+            headers=_HEADERS,
+            timeout=10,
+        )
+        resp.raise_for_status()
+        for s in resp.json():
+            eid = s["entity_id"]
+            if _MITV_PREFIX in eid:
+                name = s["attributes"].get("friendly_name", "")
+                print(f"{eid}  [{s['state']}]  {name}")
+    else:
+        print(control_tv({"action": cmd}))
