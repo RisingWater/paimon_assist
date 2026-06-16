@@ -24,7 +24,7 @@ print(f"\n模型: {VOICEPRINT_MODEL}")
 print(f"阈值: {VOICEPRINT_THRESHOLD}")
 
 # 2. 找出所有录音文件
-recordings = sorted(glob.glob("recording_20260614_223*.wav"))
+recordings = sorted(glob.glob("recordings/**/*.wav", recursive=True))
 print(f"\n找到 {len(recordings)} 个录音文件:")
 for r in recordings:
     size_kb = os.path.getsize(r) / 1024
