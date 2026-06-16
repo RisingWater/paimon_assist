@@ -213,6 +213,18 @@ async def api_detect_voiceprint(file: UploadFile = File(...)):
 
 # ---- 声纹 API ----
 
+@app.put("/api/voiceprints/{vp_id}/move")
+async def api_move_voiceprint(vp_id: int, target_user_id: int):
+    """将声纹移动到另一个用户"""
+    vp = db.get_voiceprint(vp_id)
+    if not vp:
+        raise HTTPException(404, "声纹不存在")
+    if not db.get_user(target_user_id):
+        raise HTTPException(404, "目标用户不存在")
+    db.move_voiceprint(vp_id, target_user_id)
+    return {"ok": True}
+
+
 @app.delete("/api/voiceprints/{vp_id}")
 async def api_delete_voiceprint(vp_id: int):
     vp = db.get_voiceprint(vp_id)

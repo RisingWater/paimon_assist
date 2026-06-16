@@ -79,6 +79,11 @@ export const api = {
   deleteVoiceprint: (id: number) =>
     fetch(`${BASE}/voiceprints/${id}`, { method: "DELETE" }),
 
+  moveVoiceprint: (id: number, targetUserId: number) =>
+    fetch(`${BASE}/voiceprints/${id}/move?target_user_id=${targetUserId}`, {
+      method: "PUT",
+    }).then((r) => r.json()),
+
   detect: (blob: Blob): Promise<DetectResult> => {
     const fd = new FormData()
     fd.append("file", blob, "detect.webm")

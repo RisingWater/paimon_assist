@@ -214,6 +214,14 @@ def delete_voiceprint(vp_id: int):
     conn.close()
 
 
+def move_voiceprint(vp_id: int, target_user_id: int):
+    """将声纹移动到另一个用户"""
+    conn = _connect()
+    conn.execute("UPDATE voiceprints SET user_id=? WHERE id=?", (target_user_id, vp_id))
+    conn.commit()
+    conn.close()
+
+
 # ============================================================
 # 聊天历史操作
 # ============================================================

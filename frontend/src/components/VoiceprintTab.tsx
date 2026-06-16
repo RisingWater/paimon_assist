@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Button, Space, Typography, Card, Tag, App, Spin, Empty } from "antd"
+import { Button, Space, Typography, Card, Tag, App, Spin, Empty, Select } from "antd"
 import { AudioOutlined, SearchOutlined } from "@ant-design/icons"
 import { api, type User, type Voiceprint } from "../api"
 import AddVoiceprintDialog from "../dialogs/AddVoiceprintDialog"
@@ -33,6 +33,12 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
   async function handleDeleteVp(vpId: number) {
     await api.deleteVoiceprint(vpId)
     message.success("已删除声纹")
+    onRefresh()
+  }
+
+  async function handleMoveVp(vpId: number, targetUserId: number) {
+    await api.moveVoiceprint(vpId, targetUserId)
+    message.success("已移动声纹")
     onRefresh()
   }
 
@@ -83,11 +89,22 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
             >
               <Space wrap>
                 {(vpsCache[u.id] || []).map((vp) => (
-                  <Tag key={vp.id} closable onClose={() => handleDeleteVp(vp.id)} style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Tag key={vp.id} closable onClose={() => handleDeleteVp(vp.id)} style={{ display: "inline-flex", alignItems: "center", gap: 6, paddingRight: 4 }}>
                     <span>#{vp.id}</span>
                     {vp.audio_path && (
                       <audio controls src={`/api/voiceprints/${vp.id}/audio`} style={{ height: 20, width: 110 }} />
                     )}
+                    <Select
+                      size="small"
+                      style={{ width: 100, fontSize: 11 }}
+                      placeholder="移动..."
+                      value={undefined}
+                      onChange={(targetId: number) => handleMoveVp(vp.id, targetId)}
+                      options={users.filter(x => x.id !== u.id).map(x => ({
+                        value: x.id,
+                        label: x.name || `用户#${x.id}`,
+                      }))}
+                    />
                   </Tag>
                 ))}
               </Space>
