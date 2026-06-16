@@ -29,6 +29,7 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/weather.py` | 天气查询（wttr.in），中文描述 | `get_weather` tool |
 | `src/llm_tools/location.py` | QB 设备定位查询 | `get_yuqiao_location`, `get_yuqiao_power` |
 | `src/llm_tools/web_search.py` | Claude Code CLI 联网搜索 | `web_search` tool |
+| `src/llm_tools/home_assistant_ac.py` | Home Assistant 空调控制 | `list_ac`, `control_ac` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
 | `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `src/tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
@@ -78,6 +79,8 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `get_weather` | 查询指定城市今天/明天天气 |
 | `get_yuqiao_location` | 查询乔宝通话器的当前位置和地址 |
 | `get_yuqiao_power` | 查询乔宝通话器剩余电量 |
+| `list_ac` | 列出家中所有空调的状态和温度 |
+| `control_ac` | 控制空调开关/温度/模式（默认制冷） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register()` 装饰 → 在 `__init__.py` 导入。
@@ -107,6 +110,8 @@ numpy, python-dotenv
 | `QB_LOCATION_AUTHORITY` | QB 定位 authority header | — |
 | `QB_LOCATION_USERNAME` | QB 定位登录名 | — |
 | `QB_LOCATION_PASSWORD` | QB 定位密码 | — |
+| `HOMEASSIANT_URL` | Home Assistant 地址 | — |
+| `HOMEASSIANT_TOKEN` | Home Assistant 长期令牌 | — |
 | `DISABLE_UPDATE` | 设为 1 禁止模型在线更新 | 0 |
 
 ## 模型文件

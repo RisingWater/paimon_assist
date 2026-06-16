@@ -61,7 +61,7 @@ Web 管理界面：`http://localhost:8160`
 | `src/db.py` | SQLite：用户表 + 声纹表 + 聊天历史 |
 | `src/stt.py` | 语音转文字（SenseVoiceSmall） |
 | `src/llm.py` | DeepSeek 对话 + Tool Calling，按用户隔离历史 |
-| `src/llm_tools/` | 工具注册中心 + 天气/定位/搜索工具 |
+| `src/llm_tools/` | 工具注册中心 + 天气/定位/搜索/空调控制 |
 | `src/server.py` | FastAPI REST API + serve 前端 |
 | `src/tts_api.py` | TTS Web API + 缓存 |
 | `src/tts_cache.py` | MD5 WAV 缓存 |
@@ -77,6 +77,8 @@ DeepSeek 自动调用工具获取实时信息：
 | `get_weather` | 查询指定城市今天/明天天气（wttr.in） |
 | `get_yuqiao_location` | 查询乔宝通话器当前位置和地址 |
 | `get_yuqiao_power` | 查询乔宝通话器剩余电量 |
+| `list_ac` | 列出家中所有空调状态和温度 |
+| `control_ac` | 控制空调开关/温度/模式（默认制冷） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 工具调用时如果有提示语（如"让我查一下哦"），会立刻后台 TTS 播放，搜索和 LLM 回复流程不受影响。
@@ -96,6 +98,8 @@ DeepSeek 自动调用工具获取实时信息：
 | `QB_LOCATION_URL` | QB 定位平台地址 | — |
 | `QB_LOCATION_USERNAME` | QB 定位登录名 | — |
 | `QB_LOCATION_PASSWORD` | QB 定位密码 | — |
+| `HOMEASSIANT_URL` | Home Assistant 地址 | — |
+| `HOMEASSIANT_TOKEN` | Home Assistant 令牌 | — |
 
 ## Web 管理界面
 
@@ -131,7 +135,7 @@ paimon_assist/
 │   ├── llm.py              # LLM 对话 + Tool Calling
 │   ├── tts_api.py          # TTS API
 │   ├── tts_cache.py        # TTS 缓存
-│   ├── llm_tools/          # 工具注册 + 天气/定位/搜索
+│   ├── llm_tools/          # 工具注册 + 天气/定位/搜索/空调
 │   └── vits/               # VITS 模型代码
 ├── frontend/               # React + Vite + antd 前端
 │   └── src/
