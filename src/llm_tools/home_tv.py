@@ -44,11 +44,27 @@ def _find_tv_button(keyword: str) -> str | None:
     return None
 
 
+def _is_audio_mode() -> bool | None:
+    """查询电视是否处于音响模式。None=获取失败"""
+    resp = requests.get(
+        f"{HOME_ASSISTANT_URL}/api/states",
+        headers=_HEADERS,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    for s in resp.json():
+        eid = s["entity_id"]
+        if eid.startswith("switch.") and _MITV_PREFIX in eid and "is_on" in eid:
+            return s["state"] == "on"
+    return None
+
+
 @register(
     name="control_tv",
     description=(
         "控制小米电视。开=退出音响模式，关=进入音响模式。"
         "根据用户说'打开电视'或'关闭电视'来调用。"
+        "调用前先查当前状态，已处于目标状态则跳过。"
     ),
     parameters={
         "type": "object",
@@ -65,13 +81,19 @@ def _find_tv_button(keyword: str) -> str | None:
 def control_tv(args: dict) -> str:
     action = args["action"]
     try:
+        in_audio = _is_audio_mode()
+
         if action == "on":
+            if in_audio is False:
+                return "电视已经是打开状态"
             eid = _find_tv_button("turn_mode_off")
             if not eid:
                 return "没有找到电视开关（退出音响模式按钮）"
             _press_button(eid)
             return "已打开电视（退出音响模式）"
         else:
+            if in_audio is True:
+                return "电视已经是音响模式（关闭状态）"
             eid = _find_tv_button("turn_mode_on")
             if not eid:
                 return "没有找到电视开关（进入音响模式按钮）"
