@@ -31,6 +31,8 @@ _DEFAULT_RULES = (
     "10. 控制空调前必须先调 list_ac 获取最新状态和空调名称，"
     "再根据名称匹配调 control_ac。不要用历史记录里的名字。"
     "模式支持 cool/heat/auto/dry/fan_only，设温度默认制冷。"
+    "11. 回答涉及用户身份、偏好、房间归属时，先调 read_memory 查记忆。"
+    "了解到新信息（如'王旭住主卧'）后调 save_memory 记录。"
 )
 
 _SYSTEM = {"role": "system", "content": _DEFAULT_RULES}

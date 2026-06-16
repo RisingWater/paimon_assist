@@ -1,0 +1,64 @@
+"""长期记忆工具 — 读写 memory.md"""
+import os
+from llm_tools import register
+
+_MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "memory.md"))
+
+
+@register(
+    name="read_memory",
+    description=(
+        "读取长期记忆文件，获取已知的用户偏好、身份、房间归属等信息。"
+        "在回答涉及用户个人信息或房间设备归属时，应先读取此文件。"
+    ),
+    parameters={"type": "object", "properties": {}, "required": []},
+)
+def read_memory(_args: dict = {}) -> str:
+    try:
+        if not os.path.exists(_MEMORY_FILE):
+            return "（暂无长期记忆）"
+        with open(_MEMORY_FILE, encoding="utf-8") as f:
+            content = f.read().strip()
+        return content if content else "（暂无长期记忆）"
+    except Exception as e:
+        return f"读取记忆失败：{e}"
+
+
+@register(
+    name="save_memory",
+    description=(
+        "向长期记忆文件追加一条新信息。当了解到用户的新偏好、身份、房间设备归属等时使用。"
+        "每条记忆一行，格式为 '- 事实描述'。"
+    ),
+    parameters={
+        "type": "object",
+        "properties": {
+            "fact": {
+                "type": "string",
+                "description": "要记录的事实，如'王旭的房间是主卧'、'乔宝的通话器名称是乔宝空调'",
+            }
+        },
+        "required": ["fact"],
+    },
+)
+def save_memory(args: dict) -> str:
+    fact = args.get("fact", "").strip()
+    if not fact:
+        return "未提供要记录的内容"
+
+    # 去重
+    try:
+        if os.path.exists(_MEMORY_FILE):
+            with open(_MEMORY_FILE, encoding="utf-8") as f:
+                existing = f.read()
+            if fact in existing:
+                return f"已存在：{fact}"
+    except Exception:
+        pass
+
+    try:
+        with open(_MEMORY_FILE, "a", encoding="utf-8") as f:
+            f.write(f"- {fact}\n")
+        return f"已记住：{fact}"
+    except Exception as e:
+        return f"保存记忆失败：{e}"
