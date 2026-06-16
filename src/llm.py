@@ -133,7 +133,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             if tool_prefix:
                 # 纯信息查询类工具不播放提示语，避免突兀
-                silent_tools = {"read_memory", "list_ac"}
+                silent_tools = {"read_memory", "save_memory", "list_ac"}
                 should_play = all(
                     tc["function"]["name"] not in silent_tools
                     for tc in tool_calls
