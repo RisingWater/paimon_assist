@@ -99,13 +99,41 @@ def delete_user(user_id: int):
 # ============================================================
 
 def enroll(user_id: int, emb: np.ndarray, audio_path: str = "", vp_type: str = "auto"):
-    """为指定用户添加一条声纹。vp_type: 'auto'（自动录音）或 'manual'（手动上传）"""
+    """为指定用户添加一条声纹。vp_type: 'auto'（自动录音）或 'manual'（手动上传）
+
+    自动声纹上限 100 条，超出时删除最早的。
+    """
     conn = _connect()
     conn.execute(
         "INSERT INTO voiceprints (user_id, vector, audio_path, type) VALUES (?, ?, ?, ?)",
         (user_id, emb.astype(np.float32).tobytes(), audio_path, vp_type),
     )
     conn.commit()
+
+    # 自动声纹上限 100，超出删最早的
+    if vp_type == "auto":
+        total = conn.execute(
+            "SELECT COUNT(*) FROM voiceprints WHERE user_id=? AND type='auto'",
+            (user_id,),
+        ).fetchone()[0]
+        excess = total - 100
+        if excess > 0:
+            rows = conn.execute(
+                "SELECT id, audio_path FROM voiceprints WHERE user_id=? AND type='auto' "
+                "ORDER BY id ASC LIMIT ?",
+                (user_id, excess),
+            ).fetchall()
+            for vp_id, audio_path in rows:
+                if audio_path:
+                    import os as _os
+                    try:
+                        if _os.path.isfile(audio_path):
+                            _os.remove(audio_path)
+                    except Exception:
+                        pass
+                conn.execute("DELETE FROM voiceprints WHERE id=?", (vp_id,))
+            conn.commit()
+
     conn.close()
 
 
