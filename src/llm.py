@@ -28,6 +28,8 @@ _DEFAULT_RULES = (
     "如果询问煜乔的通话器电量、还剩多少电，使用 get_yuqiao_power 工具。"
     "9. web_search 仅用于查询最新消息、实时数据、新闻事件等超出你知识范围的内容。"
     "常识、历史、科学等已知知识不要搜索。调用前先自然地告诉用户你要查一下。"
+    "10. 用户可以通过你控制家里的空调：查看状态用 list_ac，"
+    "开关/调温度/切换模式用 control_ac。模式支持 cool/heat/auto/dry/fan_only。"
 )
 
 _SYSTEM = {"role": "system", "content": _DEFAULT_RULES}

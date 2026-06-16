@@ -21,6 +21,10 @@ DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 # --- 天气 ---
 DEFAULT_CITY = os.getenv("DEFAULT_CITY", "福州")
 
+# --- Home Assistant ---
+HOME_ASSISTANT_URL = os.getenv("HOMEASSIANT_URL", "")
+HOME_ASSISTANT_TOKEN = os.getenv("HOMEASSIANT_TOKEN", "")
+
 # --- Claude Code CLI ---
 CLAUDE_BIN = os.path.expandvars(os.getenv("CLAUDE_BIN", r"%APPDATA%\npm\claude.cmd"))
 
