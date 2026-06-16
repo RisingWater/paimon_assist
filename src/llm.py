@@ -103,29 +103,37 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
 
     try:
         tools = llm_tools.get_schemas()
-        data = _call_api(history, tools)
-        choice = data["choices"][0]
-        msg = choice["message"]
-        _log.info("LLM finish_reason=%s content=%s tool_calls=%s",
-            choice.get("finish_reason", "?"),
-            (msg.get("content") or "")[:50],
-            [tc["function"]["name"] for tc in (msg.get("tool_calls") or [])],
-        )
+        tool_prefix = ""
 
-        # 处理 tool calls
-        tool_calls = msg.get("tool_calls") or []
-        # 保存 LLM 调用工具前的友好提示语（如"让我查一下哦"）
-        tool_prefix = (msg.get("content") or "").strip()
-        if tool_calls:
+        # 多轮 tool call 循环：列表→控制这样的连续调用
+        for _round in range(5):  # 最多 5 轮，防止死循环
+            data = _call_api(history, tools)
+            choice = data["choices"][0]
+            msg = choice["message"]
+            _log.info("LLM finish_reason=%s content=%s tool_calls=%s",
+                choice.get("finish_reason", "?"),
+                (msg.get("content") or "")[:50],
+                [tc["function"]["name"] for tc in (msg.get("tool_calls") or [])],
+            )
+
+            tool_calls = msg.get("tool_calls") or []
+            if not tool_calls:
+                # 没有 tool call，回复就是最终内容
+                break
+
+            # 保存友好提示语（第一轮的 content）
+            content = (msg.get("content") or "").strip()
+            if content and not tool_prefix:
+                tool_prefix = content
+
             if user_id:
-                # 存完整 JSON，保证重新加载时 tool_calls 结构不丢失
                 db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             if tool_prefix:
-                # 后台播放提示语，不阻塞搜索
                 try:
                     from vits_tts import tts as _tts
                     import threading
                     threading.Thread(target=_tts.speak_sync, args=(tool_prefix,), daemon=True).start()
+                    tool_prefix = ""  # 只播放一次
                 except Exception:
                     pass
             history.append(msg)
@@ -145,17 +153,11 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 if user_id:
                     db.append_message(user_id, "tool", json.dumps(tool_msg, ensure_ascii=False))
 
-            # 让模型基于 tool 结果生成最终回复
-            data = _call_api(history, tools)
-            choice = data["choices"][0]
-            msg = choice["message"]
-
         reply = msg.get("content", "")
         if reply:
             history.append({"role": "assistant", "content": reply})
             if user_id:
                 db.append_message(user_id, "assistant", reply)
-        # 提示语已经实时播放过了，最终回复不重复
         return reply or "（无回复）"
     except Exception as e:
         import traceback
