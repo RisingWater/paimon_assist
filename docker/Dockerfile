@@ -62,8 +62,8 @@ RUN pip3 install --no-cache-dir \
     addict \
     -i https://pypi.tuna.tsinghua.edu.cn/simple/
 
-# livekit-wakeword 不在清华镜像，单独从默认 PyPI 安装
-RUN pip3 install --no-cache-dir "livekit-wakeword[listener]"
+# livekit-wakeword 不在清华镜像，从阿里云镜像安装
+RUN pip3 install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ "livekit-wakeword[listener]"
 
 # 中文 locale
 RUN locale-gen zh_CN.UTF-8 && update-locale LANG=zh_CN.UTF-8
