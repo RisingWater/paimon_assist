@@ -131,11 +131,10 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
             if tool_prefix:
                 try:
                     from vits_tts import tts as _tts
-                    import threading
-                    threading.Thread(target=_tts.speak_sync, args=(tool_prefix,), daemon=True).start()
-                    tool_prefix = ""  # 只播放一次
+                    _tts.speak_sync(tool_prefix)
                 except Exception:
                     pass
+                tool_prefix = ""  # 只播一次
             history.append(msg)
 
             for tc in tool_calls:
