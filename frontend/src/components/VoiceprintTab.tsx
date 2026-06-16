@@ -129,16 +129,17 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
                     draggable
                     onDragStart={(e) => onDragStart(e, vp.id, u.id)}
                     style={{
-                      background: "#f5f5f5",
+                      background: vp.type === "manual" ? "#f6ffed" : "#f5f5f5",
                       borderRadius: 6,
                       padding: "6px 8px",
                       display: "flex",
                       alignItems: "center",
                       gap: 6,
                       cursor: "grab",
-                      border: "1px solid #d9d9d9",
+                      border: `1px solid ${vp.type === "manual" ? "#b7eb8f" : "#d9d9d9"}`,
                       minWidth: 0,
                     }}
+                    title={vp.type === "manual" ? "固定声纹（手动上传）" : "自动声纹（对话采集）"}
                   >
                     <HolderOutlined style={{ color: "#999", cursor: "grab", flexShrink: 0 }} />
                     <span style={{ fontSize: 12, color: "#666", flexShrink: 0 }}>#{vp.id}</span>

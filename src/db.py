@@ -22,10 +22,16 @@ def _connect() -> sqlite3.Connection:
             user_id    INTEGER NOT NULL,
             vector     BLOB    NOT NULL,
             audio_path TEXT    DEFAULT '',
+            type       TEXT    NOT NULL DEFAULT 'auto',
             created_at TEXT    DEFAULT (datetime('now','localtime')),
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
+    # 迁移：为旧表增加 type 列
+    try:
+        conn.execute("ALTER TABLE voiceprints ADD COLUMN type TEXT NOT NULL DEFAULT 'auto'")
+    except:
+        pass
     conn.execute("""
         CREATE TABLE IF NOT EXISTS chat_history (
             id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -92,12 +98,12 @@ def delete_user(user_id: int):
 # 声纹操作
 # ============================================================
 
-def enroll(user_id: int, emb: np.ndarray, audio_path: str = ""):
-    """为指定用户添加一条声纹"""
+def enroll(user_id: int, emb: np.ndarray, audio_path: str = "", vp_type: str = "auto"):
+    """为指定用户添加一条声纹。vp_type: 'auto'（自动录音）或 'manual'（手动上传）"""
     conn = _connect()
     conn.execute(
-        "INSERT INTO voiceprints (user_id, vector, audio_path) VALUES (?, ?, ?)",
-        (user_id, emb.astype(np.float32).tobytes(), audio_path),
+        "INSERT INTO voiceprints (user_id, vector, audio_path, type) VALUES (?, ?, ?, ?)",
+        (user_id, emb.astype(np.float32).tobytes(), audio_path, vp_type),
     )
     conn.commit()
     conn.close()
@@ -175,20 +181,20 @@ def list_voiceprints(user_id: int | None = None) -> "list[dict]":
     conn = _connect()
     if user_id is not None:
         rows = conn.execute(
-            "SELECT v.id, v.user_id, u.name, v.audio_path, v.created_at "
+            "SELECT v.id, v.user_id, u.name, v.audio_path, v.type, v.created_at "
             "FROM voiceprints v JOIN users u ON v.user_id=u.id "
             "WHERE v.user_id=? ORDER BY v.id",
             (user_id,),
         ).fetchall()
     else:
         rows = conn.execute(
-            "SELECT v.id, v.user_id, u.name, v.audio_path, v.created_at "
+            "SELECT v.id, v.user_id, u.name, v.audio_path, v.type, v.created_at "
             "FROM voiceprints v JOIN users u ON v.user_id=u.id "
             "ORDER BY v.id"
         ).fetchall()
     conn.close()
     return [
-        {"id": r[0], "user_id": r[1], "name": r[2], "audio_path": r[3], "created_at": r[4]}
+        {"id": r[0], "user_id": r[1], "name": r[2], "audio_path": r[3], "type": r[4], "created_at": r[5]}
         for r in rows
     ]
 
@@ -196,14 +202,14 @@ def list_voiceprints(user_id: int | None = None) -> "list[dict]":
 def get_voiceprint(vp_id: int) -> "dict|None":
     conn = _connect()
     row = conn.execute(
-        "SELECT v.id, v.user_id, u.name, v.audio_path, v.created_at "
+        "SELECT v.id, v.user_id, u.name, v.audio_path, v.type, v.created_at "
         "FROM voiceprints v JOIN users u ON v.user_id=u.id "
         "WHERE v.id=?",
         (vp_id,),
     ).fetchone()
     conn.close()
     if row:
-        return {"id": row[0], "user_id": row[1], "name": row[2], "audio_path": row[3], "created_at": row[4]}
+        return {"id": row[0], "user_id": row[1], "name": row[2], "audio_path": row[3], "type": row[4], "created_at": row[5]}
     return None
 
 

@@ -125,7 +125,7 @@ async def api_add_voiceprint(user_id: int, file: UploadFile = File(...)):
         raise HTTPException(500, f"声纹提取失败: {e}")
 
     # 保存
-    db.enroll(user_id, emb, audio_path=path)
+    db.enroll(user_id, emb, audio_path=path, vp_type="manual")
     return {"ok": True, "user_id": user_id, "audio_path": path}
 
 

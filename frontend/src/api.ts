@@ -9,6 +9,7 @@ export interface Voiceprint {
   user_id: number
   name: string
   audio_path: string
+  type: string
   created_at: string
 }
 
