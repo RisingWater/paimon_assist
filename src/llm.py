@@ -31,7 +31,7 @@ _DEFAULT_RULES = (
     "10. 控制空调前必须先调 list_ac 获取最新状态和空调名称，"
     "再根据名称匹配调 control_ac。不要用历史记录里的名字。"
     "模式支持 cool/heat/auto/dry/fan_only，设温度默认制冷。"
-    "11. 打开/关闭电视用 control_tv 工具（开=退出音响模式，关=进入音响模式）。"
+    "11. 控制电视前先调 get_tv_state 查状态，再调 control_tv（开=退出音响模式，关=进入音响模式）。"
     "12. 回答涉及用户身份、偏好、房间归属时，先调 read_memory 查记忆。"
     "了解到新信息（如'王旭住主卧'）后调 save_memory 记录。"
 )
@@ -134,7 +134,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             if tool_prefix:
                 # 纯信息查询类工具不播放提示语，避免突兀
-                silent_tools = {"read_memory", "save_memory", "list_ac"}
+                silent_tools = {"read_memory", "save_memory", "list_ac", "get_tv_state"}
                 should_play = all(
                     tc["function"]["name"] not in silent_tools
                     for tc in tool_calls
