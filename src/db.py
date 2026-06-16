@@ -183,14 +183,14 @@ def list_voiceprints(user_id: int | None = None) -> "list[dict]":
         rows = conn.execute(
             "SELECT v.id, v.user_id, u.name, v.audio_path, v.type, v.created_at "
             "FROM voiceprints v JOIN users u ON v.user_id=u.id "
-            "WHERE v.user_id=? ORDER BY v.id",
+            "WHERE v.user_id=? ORDER BY CASE v.type WHEN 'manual' THEN 0 ELSE 1 END, v.id",
             (user_id,),
         ).fetchall()
     else:
         rows = conn.execute(
             "SELECT v.id, v.user_id, u.name, v.audio_path, v.type, v.created_at "
             "FROM voiceprints v JOIN users u ON v.user_id=u.id "
-            "ORDER BY v.id"
+            "ORDER BY CASE v.type WHEN 'manual' THEN 0 ELSE 1 END, v.id"
         ).fetchall()
     conn.close()
     return [
