@@ -66,7 +66,7 @@ async def main():
             filename = await asyncio.to_thread(vad.record, counter)
 
             # 2. 声纹验证
-            user_id, info = await asyncio.to_thread(voiceprint.verify, filename)
+            user_id, info, audio_path = await asyncio.to_thread(voiceprint.verify, filename)
             if info.startswith("enrolled:"):
                 speaker = ""
                 print(f"  Voiceprint: ENROLLED (user_id={user_id})")
@@ -75,9 +75,9 @@ async def main():
                 sim = info.split(":")[-1]
                 print(f"  Voiceprint: {speaker} user_id={user_id} sim={sim}")
 
-            # 3. STT
+            # 3. STT（用验证返回的新路径，文件已被移到 records/{user_id}/）
             print("  STT...", end=" ", flush=True)
-            text = await asyncio.to_thread(stt.transcribe, filename)
+            text = await asyncio.to_thread(stt.transcribe, audio_path)
             print(f"-> '{text}'")
 
             # 4. LLM + 同步播放回复
@@ -88,7 +88,7 @@ async def main():
                 await asyncio.to_thread(tts.speak_sync, reply)
             # 没说话 → 直接回到唤醒词检测
 
-            print(f"  Saved: {filename}\n")
+            print(f"  Saved: {audio_path}\n")
             counter += 1
 
 

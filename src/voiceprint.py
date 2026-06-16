@@ -40,13 +40,12 @@ def extract(wav_path: str) -> np.ndarray:
     return np.array(result["embs"][0])
 
 
-def verify(wav_path: str) -> "tuple[int|None, str]":
+def verify(wav_path: str) -> "tuple[int|None, str, str]":
     """
     声纹验证（多声纹平均匹配 + 自动注册）。
 
     Returns:
-        (user_id, 信息字符串)
-        user_id=None 表示没匹配到任何人（会自动注册新用户）
+        (user_id, 信息字符串, 移动后的文件路径)
     """
     emb = extract(wav_path)
 
@@ -55,20 +54,19 @@ def verify(wav_path: str) -> "tuple[int|None, str]":
         uid = db.create_user("")
         dest = _move_to_user_dir(wav_path, uid)
         db.enroll(uid, emb, audio_path=dest)
-        return uid, "enrolled:"
+        return uid, "enrolled:", dest
 
     # 多声纹平均匹配
     uid, name, avg_sim = db.find_best(emb)
 
     if uid is not None:
-        # 匹配成功 → 追加一条声纹（丰富这个用户的声纹库）
         dest = _move_to_user_dir(wav_path, uid)
         db.enroll(uid, emb, audio_path=dest)
         display = name if name else f"用户#{uid}"
-        return uid, f"{display}:{avg_sim:.4f}"
+        return uid, f"{display}:{avg_sim:.4f}", dest
 
     # 陌生人 → 新建用户 + 首条声纹
     uid = db.create_user("")
     dest = _move_to_user_dir(wav_path, uid)
     db.enroll(uid, emb, audio_path=dest)
-    return uid, "enrolled:"
+    return uid, "enrolled:", dest
