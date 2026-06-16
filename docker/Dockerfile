@@ -60,8 +60,10 @@ RUN pip3 install --no-cache-dir \
     funasr \
     modelscope \
     addict \
-    livekit-wakeword \
     -i https://pypi.tuna.tsinghua.edu.cn/simple/
+
+# livekit-wakeword 不在清华镜像，单独从默认 PyPI 安装
+RUN pip3 install --no-cache-dir "livekit-wakeword[listener]"
 
 # 中文 locale
 RUN locale-gen zh_CN.UTF-8 && update-locale LANG=zh_CN.UTF-8
