@@ -12,7 +12,9 @@ services:
     volumes:
       - /var/run/pulse:/var/run/pulse
       - ../models:/workdir/models
+      - ../recordings:/workdir/recordings
       - ../.env:/workdir/.env:ro
+      - ../memory.md:/workdir/memory.md
       - ../models/tts_cache:/workdir/models/tts_cache
     environment:
       - PULSE_RUNTIME_PATH=/var/run/pulse

@@ -61,7 +61,7 @@ Web 管理界面：`http://localhost:8160`
 | `src/db.py` | SQLite：用户表 + 声纹表 + 聊天历史 |
 | `src/stt.py` | 语音转文字（SenseVoiceSmall） |
 | `src/llm.py` | DeepSeek 对话 + Tool Calling，按用户隔离历史 |
-| `src/llm_tools/` | 工具注册中心 + 天气/定位/搜索/空调控制 |
+| `src/llm_tools/` | 工具注册中心 + 天气/定位/搜索/空调/电视/记忆 |
 | `src/server.py` | FastAPI REST API + serve 前端 |
 | `src/tts_api.py` | TTS Web API + 缓存 |
 | `src/tts_cache.py` | MD5 WAV 缓存 |
@@ -77,8 +77,9 @@ DeepSeek 自动调用工具获取实时信息：
 | `get_weather` | 查询指定城市今天/明天天气（wttr.in） |
 | `get_yuqiao_location` | 查询乔宝通话器当前位置和地址 |
 | `get_yuqiao_power` | 查询乔宝通话器剩余电量 |
-| `list_ac` | 列出家中所有空调状态和温度 |
-| `control_ac` | 控制空调开关/温度/模式（默认制冷） |
+| `list_ac` / `control_ac` | 查看/控制家中空调（开关/温度/模式） |
+| `get_tv_state` / `control_tv` | 查看/控制小米电视（关=进入音响模式） |
+| `read_memory` / `save_memory` | 长期记忆读写（用户身份、房间归属等） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 工具调用时如果有提示语（如"让我查一下哦"），会立刻后台 TTS 播放，搜索和 LLM 回复流程不受影响。
@@ -100,6 +101,8 @@ DeepSeek 自动调用工具获取实时信息：
 | `QB_LOCATION_PASSWORD` | QB 定位密码 | — |
 | `HOMEASSIANT_URL` | Home Assistant 地址 | — |
 | `HOMEASSIANT_TOKEN` | Home Assistant 令牌 | — |
+| `DEFAULT_CITY` | 天气默认城市 | 福州 |
+| `CLAUDE_BIN` | Claude Code CLI 路径 | %APPDATA%\npm\claude.cmd |
 
 ## Web 管理界面
 
@@ -135,7 +138,7 @@ paimon_assist/
 │   ├── llm.py              # LLM 对话 + Tool Calling
 │   ├── tts_api.py          # TTS API
 │   ├── tts_cache.py        # TTS 缓存
-│   ├── llm_tools/          # 工具注册 + 天气/定位/搜索/空调
+│   ├── llm_tools/          # 工具注册 + 天气/定位/搜索/空调/电视/记忆
 │   └── vits/               # VITS 模型代码
 ├── frontend/               # React + Vite + antd 前端
 │   └── src/
@@ -148,6 +151,9 @@ paimon_assist/
 │   ├── paimon.pth          # VITS 权重（417MB）
 │   ├── paimon_config.json  # VITS 配置
 │   └── tts_cache/          # TTS 缓存（自动生成）
+├── recordings/             # 用户录音（按 user_id 分目录）
+├── memory.md               # 长期记忆
+├── docker/                 # Docker 部署
 ├── requirements.txt
 └── .env.example
 ```

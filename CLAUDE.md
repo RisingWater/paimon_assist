@@ -30,6 +30,8 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/location.py` | QB 设备定位查询 | `get_yuqiao_location`, `get_yuqiao_power` |
 | `src/llm_tools/web_search.py` | Claude Code CLI 联网搜索 | `web_search` tool |
 | `src/llm_tools/home_assistant_ac.py` | Home Assistant 空调控制 | `list_ac`, `control_ac` |
+| `src/llm_tools/home_tv.py` | Home Assistant 小米电视控制 | `get_tv_state`, `control_tv` |
+| `src/llm_tools/memory.py` | 长期记忆读写（memory.md） | `read_memory`, `save_memory` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
 | `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `src/tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
@@ -55,10 +57,13 @@ Web 界面 `localhost:8160` — 三个栏目：
 
 ```
 users (id, name, created_at)
-voiceprints (id, user_id, vector BLOB, audio_path, created_at)
+voiceprints (id, user_id, vector BLOB, audio_path, type, created_at)
+  → type: 'manual'（Web 上传，固定），'auto'（对话采集，上限 100）
+  → audio_path 指向 recordings/{user_id}/ 下的 WAV 文件
 chat_history (id, user_id, role, content, created_at)
-  → 一个 user 可绑定多条声纹
   → LLM 对话按 user_id 独立存储
+  → tool_calls 消息存为完整 JSON
+memory.md           ← 长期记忆文件（不提交 git）
 ```
 
 ## 声纹匹配算法
@@ -81,6 +86,10 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `get_yuqiao_power` | 查询乔宝通话器剩余电量 |
 | `list_ac` | 列出家中所有空调的状态和温度 |
 | `control_ac` | 控制空调开关/温度/模式（默认制冷） |
+| `get_tv_state` | 查询小米电视当前状态（音响模式/打开） |
+| `control_tv` | 控制小米电视开关（关=进入音响模式） |
+| `read_memory` | 读取长期记忆（用户身份、偏好、房间归属） |
+| `save_memory` | 向长期记忆追加新信息 |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register()` 装饰 → 在 `__init__.py` 导入。
@@ -112,6 +121,8 @@ numpy, python-dotenv
 | `QB_LOCATION_PASSWORD` | QB 定位密码 | — |
 | `HOMEASSIANT_URL` | Home Assistant 地址 | — |
 | `HOMEASSIANT_TOKEN` | Home Assistant 长期令牌 | — |
+| `DEFAULT_CITY` | 天气默认城市 | 福州 |
+| `CLAUDE_BIN` | Claude Code CLI 路径 | %APPDATA%\npm\claude.cmd |
 | `DISABLE_UPDATE` | 设为 1 禁止模型在线更新 | 0 |
 
 ## 模型文件
@@ -127,7 +138,11 @@ numpy, python-dotenv
 ## 注意事项
 
 - `.env` 包含 API 密钥，不提交 git
+- `memory.md` 包含个人信息，不提交 git
 - TTS 缓存目录 `models/tts_cache/` 不提交 git
-- 录音文件 `recording_*.wav` 不提交 git
+- 录音目录 `recordings/` 不提交 git
 - 声纹数据库 `models/voiceprints.db` 不提交 git
 - VITS 模型权重 `models/paimon.pth` 不提交 git
+- TTS 播放时暂停唤醒词检测，播完自动恢复
+- tool call 多轮循环最多 5 轮
+- 静默工具（read_memory/save_memory/list_ac/get_tv_state）不播 TTS 提示语
