@@ -79,3 +79,12 @@ def control_tv(args: dict) -> str:
             return "已关闭电视（进入音响模式）"
     except Exception as e:
         return f"电视控制失败：{e}"
+
+
+if __name__ == "__main__":
+    import sys
+    logging.basicConfig(level=logging.INFO)
+    if len(sys.argv) < 2:
+        print("Usage: python -m llm_tools.home_tv on|off")
+        sys.exit(1)
+    print(control_tv({"action": sys.argv[1]}))
