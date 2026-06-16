@@ -139,8 +139,10 @@ def control_ac(args: dict) -> str:
             if not value:
                 return "请指定温度，如 26"
             temp = float(value)
+            # 设温度时默认切到制冷模式
+            _call_service("climate", "set_hvac_mode", entity_id, {"hvac_mode": "cool"})
             _call_service("climate", "set_temperature", entity_id, {"temperature": temp})
-            return f"已设置 {entity_id} 温度为 {temp}°C"
+            return f"已设置 {entity_id} 温度为 {temp}°C（制冷模式）"
 
         elif action == "set_mode":
             if not value:
