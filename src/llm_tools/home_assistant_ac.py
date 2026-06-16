@@ -46,6 +46,15 @@ def _list_climate_entities() -> list[dict]:
     ]
 
 
+def _get_ac_state(entity_id: str) -> str:
+    """获取单个空调的当前状态文本"""
+    acs = _list_climate_entities()
+    for a in acs:
+        if a["entity_id"] == entity_id:
+            return _fmt_ac(a)
+    return f"{entity_id}（状态未知）"
+
+
 def _find_entity(name: str) -> str | None:
     """按名称模糊匹配空调实体"""
     acs = _list_climate_entities()
@@ -89,7 +98,9 @@ def list_ac(_args: dict = {}) -> str:
 @register(
     name="control_ac",
     description=(
-        "控制指定的空调。支持开关、设置温度、切换模式。"
+        "控制指定的空调，执行后自动返回该空调的最新状态。"
+        "调用前不需要先 list_ac，直接控制即可。"
+        "支持开关、设置温度（默认制冷）、切换模式。"
         "可通过空调名称模糊匹配，如未指定则控制第一台。"
     ),
     parameters={
@@ -129,20 +140,19 @@ def control_ac(args: dict) -> str:
 
         if action == "on":
             _call_service("climate", "turn_on", entity_id)
-            return f"已开启 {entity_id}"
+            return f"已开启 {entity_id}，当前 {_get_ac_state(entity_id)}"
 
         elif action == "off":
             _call_service("climate", "turn_off", entity_id)
-            return f"已关闭 {entity_id}"
+            return f"已关闭 {entity_id}，当前 {_get_ac_state(entity_id)}"
 
         elif action == "set_temp":
             if not value:
                 return "请指定温度，如 26"
             temp = float(value)
-            # 设温度时默认切到制冷模式
             _call_service("climate", "set_hvac_mode", entity_id, {"hvac_mode": "cool"})
             _call_service("climate", "set_temperature", entity_id, {"temperature": temp})
-            return f"已设置 {entity_id} 温度为 {temp}°C（制冷模式）"
+            return f"已设置 {entity_id} 温度为 {temp}°C（制冷模式），当前 {_get_ac_state(entity_id)}"
 
         elif action == "set_mode":
             if not value:
@@ -153,7 +163,7 @@ def control_ac(args: dict) -> str:
                 return f"无效模式，可选：{', '.join(sorted(valid))}"
             _call_service("climate", "set_hvac_mode", entity_id, {"hvac_mode": value})
             mode_cn = {"cool": "制冷", "heat": "制热", "auto": "自动", "dry": "除湿", "fan_only": "送风"}
-            return f"已设置 {entity_id} 模式为 {mode_cn.get(value, value)}"
+            return f"已设置 {entity_id} 模式为 {mode_cn.get(value, value)}，当前 {_get_ac_state(entity_id)}"
 
         return f"未知操作: {action}"
 
