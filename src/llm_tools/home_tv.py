@@ -29,8 +29,8 @@ def _press_button(entity_id: str):
     resp.raise_for_status()
 
 
-def _find_tv_button(suffix: str) -> str | None:
-    """查找指定后缀的电视 button 实体"""
+def _find_tv_button(keyword: str) -> str | None:
+    """查找包含关键词的电视 button 实体"""
     resp = requests.get(
         f"{HOME_ASSISTANT_URL}/api/states",
         headers=_HEADERS,
@@ -39,7 +39,7 @@ def _find_tv_button(suffix: str) -> str | None:
     resp.raise_for_status()
     for s in resp.json():
         eid = s["entity_id"]
-        if eid.startswith(f"button.{_MITV_PREFIX}") and eid.endswith(suffix):
+        if eid.startswith(f"button.{_MITV_PREFIX}") and keyword in eid:
             return eid
     return None
 
@@ -66,13 +66,13 @@ def control_tv(args: dict) -> str:
     action = args["action"]
     try:
         if action == "on":
-            eid = _find_tv_button("_turn_mode_off")
+            eid = _find_tv_button("turn_mode_off")
             if not eid:
                 return "没有找到电视开关（退出音响模式按钮）"
             _press_button(eid)
             return "已打开电视（退出音响模式）"
         else:
-            eid = _find_tv_button("_turn_mode_on")
+            eid = _find_tv_button("turn_mode_on")
             if not eid:
                 return "没有找到电视开关（进入音响模式按钮）"
             _press_button(eid)
