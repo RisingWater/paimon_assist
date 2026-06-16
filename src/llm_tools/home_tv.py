@@ -1,7 +1,8 @@
 """Home Assistant 小米电视控制工具
 
-电视的开关对应：开=退出音响模式，关=进入音响模式
-HA 中通过 media_player 或 button 实体控制
+电视开关对应 button 实体：
+  开（退出音响模式）= button.xxx_turn_mode_off
+  关（进入音响模式）= button.xxx_turn_mode_on
 """
 import logging
 import requests
@@ -14,19 +15,22 @@ _HEADERS = {
     "Authorization": f"Bearer {HOME_ASSISTANT_TOKEN}",
     "Content-Type": "application/json",
 }
+_MITV_PREFIX = "xiaomi_cn_mitv"
 
 
-def _call_service(domain: str, service: str, entity_id: str, data: dict | None = None):
-    url = f"{HOME_ASSISTANT_URL}/api/services/{domain}/{service}"
-    body = {"entity_id": entity_id}
-    if data:
-        body.update(data)
-    resp = requests.post(url, json=body, headers=_HEADERS, timeout=10)
+def _press_button(entity_id: str):
+    url = f"{HOME_ASSISTANT_URL}/api/services/button/press"
+    resp = requests.post(
+        url,
+        json={"entity_id": entity_id},
+        headers=_HEADERS,
+        timeout=10,
+    )
     resp.raise_for_status()
 
 
-def _find_tv() -> str | None:
-    """查找电视实体"""
+def _find_tv_button(suffix: str) -> str | None:
+    """查找指定后缀的电视 button 实体"""
     resp = requests.get(
         f"{HOME_ASSISTANT_URL}/api/states",
         headers=_HEADERS,
@@ -35,9 +39,7 @@ def _find_tv() -> str | None:
     resp.raise_for_status()
     for s in resp.json():
         eid = s["entity_id"]
-        name = s["attributes"].get("friendly_name", "")
-        # 匹配电视相关实体
-        if ("电视" in name or "tv" in eid.lower() or "xiaomi" in eid.lower()) and s["state"] != "unavailable":
+        if eid.startswith(f"button.{_MITV_PREFIX}") and eid.endswith(suffix):
             return eid
     return None
 
@@ -63,17 +65,17 @@ def _find_tv() -> str | None:
 def control_tv(args: dict) -> str:
     action = args["action"]
     try:
-        entity_id = _find_tv()
-        if not entity_id:
-            return "没有找到小米电视"
-
         if action == "on":
-            # 退出音响模式 = 打开电视
-            _call_service("media_player", "turn_on", entity_id)
-            return f"已打开电视（退出音响模式）"
+            eid = _find_tv_button("_turn_mode_off")
+            if not eid:
+                return "没有找到电视开关（退出音响模式按钮）"
+            _press_button(eid)
+            return "已打开电视（退出音响模式）"
         else:
-            # 进入音响模式 = 关闭电视
-            _call_service("media_player", "turn_off", entity_id)
-            return f"已关闭电视（进入音响模式）"
+            eid = _find_tv_button("_turn_mode_on")
+            if not eid:
+                return "没有找到电视开关（进入音响模式按钮）"
+            _press_button(eid)
+            return "已关闭电视（进入音响模式）"
     except Exception as e:
         return f"电视控制失败：{e}"
