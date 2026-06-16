@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
-import { Button, Space, Typography, Card, Tag, App, Spin, Empty, Select } from "antd"
-import { AudioOutlined, SearchOutlined } from "@ant-design/icons"
+import { Button, Space, Typography, Card, Tag, App, Spin, Empty } from "antd"
+import { AudioOutlined, SearchOutlined, HolderOutlined } from "@ant-design/icons"
 import { api, type User, type Voiceprint } from "../api"
 import AddVoiceprintDialog from "../dialogs/AddVoiceprintDialog"
 import DetectDialog from "../dialogs/DetectDialog"
@@ -16,6 +16,7 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
   const [vpsCache, setVpsCache] = useState<Record<number, Voiceprint[]>>({})
   const [dlgAddVp, setDlgAddVp] = useState(false)
   const [dlgDetect, setDlgDetect] = useState(false)
+  const [dragOver, setDragOver] = useState<number | null>(null)
 
   useEffect(() => {
     async function load() {
@@ -40,6 +41,32 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
     await api.moveVoiceprint(vpId, targetUserId)
     message.success("已移动声纹")
     onRefresh()
+  }
+
+  function onDragStart(e: React.DragEvent, vpId: number, fromUserId: number) {
+    e.dataTransfer.setData("vpId", String(vpId))
+    e.dataTransfer.setData("fromUserId", String(fromUserId))
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  function onDragOver(e: React.DragEvent, userId: number) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+    setDragOver(userId)
+  }
+
+  function onDragLeave() {
+    setDragOver(null)
+  }
+
+  function onDrop(e: React.DragEvent, toUserId: number) {
+    e.preventDefault()
+    setDragOver(null)
+    const vpId = Number(e.dataTransfer.getData("vpId"))
+    const fromUserId = Number(e.dataTransfer.getData("fromUserId"))
+    if (vpId && fromUserId !== toUserId) {
+      handleMoveVp(vpId, toUserId)
+    }
   }
 
   const usersWithVps = users.filter((u) => (vpsCache[u.id] || []).length > 0)
@@ -79,7 +106,15 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
             <Card
               key={u.id}
               size="small"
-              style={{ marginBottom: 12 }}
+              style={{
+                marginBottom: 12,
+                border: dragOver === u.id ? "2px dashed #1677ff" : undefined,
+                background: dragOver === u.id ? "#e6f4ff" : undefined,
+                transition: "background 0.2s, border 0.2s",
+              }}
+              onDragOver={(e) => onDragOver(e, u.id)}
+              onDragLeave={onDragLeave}
+              onDrop={(e) => onDrop(e, u.id)}
               title={
                 <Typography.Text strong>
                   {u.name || `用户#${u.id}`}
@@ -89,22 +124,19 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
             >
               <Space wrap>
                 {(vpsCache[u.id] || []).map((vp) => (
-                  <Tag key={vp.id} closable onClose={() => handleDeleteVp(vp.id)} style={{ display: "inline-flex", alignItems: "center", gap: 6, paddingRight: 4 }}>
+                  <Tag
+                    key={vp.id}
+                    closable
+                    draggable
+                    onDragStart={(e) => onDragStart(e, vp.id, u.id)}
+                    onClose={() => handleDeleteVp(vp.id)}
+                    style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "grab" }}
+                  >
+                    <HolderOutlined style={{ color: "#999", cursor: "grab" }} />
                     <span>#{vp.id}</span>
                     {vp.audio_path && (
                       <audio controls src={`/api/voiceprints/${vp.id}/audio`} style={{ height: 20, width: 110 }} />
                     )}
-                    <Select
-                      size="small"
-                      style={{ width: 100, fontSize: 11 }}
-                      placeholder="移动..."
-                      value={undefined}
-                      onChange={(targetId: number) => handleMoveVp(vp.id, targetId)}
-                      options={users.filter(x => x.id !== u.id).map(x => ({
-                        value: x.id,
-                        label: x.name || `用户#${x.id}`,
-                      }))}
-                    />
                   </Tag>
                 ))}
               </Space>
