@@ -9,7 +9,7 @@ NAME="paimon_assist"
 # 启动
 echo "=== Starting ==="
 docker run -d -it --name paimon_assist --privileged --device /dev/snd:/dev/snd -v /vol1/paimon_ai/paimon_assist:/workdir \
-    -e PULSE_RUNTIME_PATH=/workdir/pulse -p 8160:8160 --restart unless-stopped --entrypoint /bin/bash paimon-assist
+    -e PULSE_RUNTIME_PATH=/workdir/pulse -p 6018:8160 --restart unless-stopped --entrypoint /bin/bash paimon-assist
 
 echo ""
 echo "Done. Web: http://localhost:8160"

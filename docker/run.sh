@@ -10,12 +10,14 @@ if [ -d .git ] && git status &> /dev/null; then
 fi
 
 # ---- PulseAudio ----
-echo "Starting PulseAudio..."
+echo "Shutdown PulseAudio if exist..."
 
 pulseaudio --kill 2>/dev/null || true
 sleep 2
 
+echo "Starting PulseAudio..."
 pulseaudio --start --exit-idle-time=-1 --log-target=stderr &
+sleep 1
 
 MAX_RETRIES=30
 RETRY_COUNT=0
