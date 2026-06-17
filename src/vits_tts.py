@@ -173,39 +173,58 @@ class VitsTTS:
             self._play(self.synthesize(merged[0]))
             return
 
-        # 生产者-消费者：合成一句 → 入队 → 主线程立即播放
+        # 生产者-消费者：合成一句 → 入队 → 回调播放
         audio_queue: queue.Queue = queue.Queue()
         synth_done = threading.Event()
 
         def _producer():
-            for s in merged:
+            for i, s in enumerate(merged):
                 audio_queue.put((s, self.synthesize(s)))
             synth_done.set()
 
         threading.Thread(target=_producer, daemon=True).start()
 
         sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
+        played = [0]
+        current_chunk = [None]   # 当前正在播放的音频剩余部分
+
+        def _callback(in_data, frame_count, time_info, status):
+            needed = frame_count * 4  # float32 = 4 bytes per sample
+
+            # 上一句还有剩余，继续输出
+            if current_chunk[0] is not None:
+                data = current_chunk[0]
+                if len(data) >= needed:
+                    current_chunk[0] = data[needed:] if len(data) > needed else None
+                    return (data[:needed], pyaudio.paContinue)
+                else:
+                    # 剩余不够一帧，补静音，清空
+                    current_chunk[0] = None
+                    return (data + b"\x00" * (needed - len(data)), pyaudio.paContinue)
+
+            # 取下一句
+            try:
+                sentence, audio = audio_queue.get_nowait()
+                played[0] += 1
+                print(f"  [TTS {played[0]}/{len(merged)}] {sentence}")
+                current_chunk[0] = audio.tobytes()
+                return _callback(in_data, frame_count, time_info, status)
+            except queue.Empty:
+                if synth_done.is_set():
+                    return (b"", pyaudio.paComplete)
+                else:
+                    return (b"\x00" * needed, pyaudio.paContinue)
+
         pa = pyaudio.PyAudio()
         stream = pa.open(
             format=pyaudio.paFloat32, channels=1, rate=sr,
             output=True, output_device_index=self.play_device,
+            stream_callback=_callback,
         )
-
-        # 边合边播：有就播，合完且队列空才退出
-        played = 0
-        # 句子间隙等下一句时避免 ALSA underrun 刷屏
-        import os as _os2
-        _os2.environ.setdefault("ALSA_IGNORE_ERRORS", "1")
-
-        while not synth_done.is_set() or not audio_queue.empty():
-            try:
-                sentence, audio = audio_queue.get(timeout=0.1)
-                stream.write(audio.tobytes())
-                played += 1
-                print(f"  [TTS {played}/{len(merged)}] {sentence}")
-            except queue.Empty:
-                pass
-
+        stream.start_stream()
+        while stream.is_active():
+            import time as _time
+            _time.sleep(0.05)
         stream.stop_stream()
         stream.close()
         pa.terminate()
