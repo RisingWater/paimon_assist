@@ -11,13 +11,7 @@ services:
       - /dev/snd:/dev/snd
     volumes:
       - /var/run/pulse:/var/run/pulse
-      - ../src:/workdir/src
-      - ../models:/workdir/models
-      - ../recordings:/workdir/recordings
-      - ../.env:/workdir/.env:ro
-      - ../memory.md:/workdir/memory.md
-      - ../models/tts_cache:/workdir/models/tts_cache
-      - ../docker/run.sh:/workdir/docker/run.sh:ro
+      - ..:/workdir
     environment:
       - PULSE_RUNTIME_PATH=/var/run/pulse
     ports:
