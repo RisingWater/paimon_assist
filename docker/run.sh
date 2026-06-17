@@ -84,6 +84,14 @@ if [ "$PULSE_STARTED" = true ]; then
     echo "Audio initialization complete"
 fi
 
+# ---- 虚拟环境 ----
+cd /workdir
+if [ ! -d venv ]; then
+    echo "Creating virtual environment..."
+    python3 -m venv venv
+    venv/bin/pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
+fi
+
 # ---- 启动应用 ----
 echo "Starting 派萌助手..."
-exec python3 src/main.py
+exec venv/bin/python3 src/main.py

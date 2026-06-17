@@ -12,8 +12,12 @@ services:
     volumes:
       - /var/run/pulse:/var/run/pulse
       - ..:/workdir
+      - venv:/workdir/venv
     environment:
       - PULSE_RUNTIME_PATH=/var/run/pulse
     ports:
       - "8160:8160"
     restart: unless-stopped
+
+volumes:
+  venv:

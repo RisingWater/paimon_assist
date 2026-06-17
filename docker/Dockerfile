@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && \
     sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
 
-# 系统依赖
+# 系统依赖 + Python 虚拟环境
 RUN apt-get update && apt-get install -y \
     sudo \
     git \
@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     python3 \
     python3-pip \
+    python3-venv \
     alsa-utils \
     pulseaudio \
     pulseaudio-utils \
@@ -39,31 +40,8 @@ RUN mkdir -p /var/run/pulse && \
     echo "load-module module-always-sink" >> /etc/pulse/default.pa && \
     echo "load-module module-suspend-on-idle" >> /etc/pulse/default.pa
 
-# Python 依赖（使用清华源加速）
-RUN pip3 install --no-cache-dir \
-    torch \
-    onnxruntime \
-    pyaudio \
-    numpy \
-    soundfile \
-    scipy \
-    requests \
-    python-dotenv \
-    fastapi \
-    uvicorn \
-    python-multipart \
-    pypinyin \
-    unidecode \
-    phonemizer \
-    datasets \
-    silero-vad \
-    funasr \
-    modelscope \
-    addict \
-    -i https://pypi.tuna.tsinghua.edu.cn/simple/
-
-# livekit-wakeword: TODO 需要手动安装
-# RUN pip3 install --no-cache-dir -i https://mirrors.aliyun.com/pypi/simple/ "livekit-wakeword[listener]"
+# Python 包安装在虚拟环境中（挂载项目目录后运行 pip install -r requirements.txt）
+# 不在此处 pip install，由 run.sh 或用户手动管理
 
 # 中文 locale
 RUN locale-gen zh_CN.UTF-8 && update-locale LANG=zh_CN.UTF-8
@@ -76,4 +54,4 @@ RUN git config --global --add safe.directory "*"
 WORKDIR /workdir
 
 USER appuser
-CMD ["/workdir/docker/run.sh"]
+CMD ["bash", "docker/run.sh"]
