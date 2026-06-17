@@ -179,7 +179,7 @@ class VitsTTS:
 
         def _producer():
             for s in merged:
-                audio_queue.put(self.synthesize(s))
+                audio_queue.put((s, self.synthesize(s)))
             synth_done.set()
 
         threading.Thread(target=_producer, daemon=True).start()
@@ -192,10 +192,13 @@ class VitsTTS:
         )
 
         # 边合边播：有就播，合完且队列空才退出
+        played = 0
         while not synth_done.is_set() or not audio_queue.empty():
             try:
-                audio = audio_queue.get(timeout=0.1)
+                sentence, audio = audio_queue.get(timeout=0.1)
                 stream.write(audio.tobytes())
+                played += 1
+                print(f"  [TTS {played}/{len(merged)}] {sentence}")
             except queue.Empty:
                 pass
 
