@@ -80,6 +80,8 @@ async def api_delete_user(user_id: int):
     u = db.get_user(user_id)
     if not u:
         raise HTTPException(404, "用户不存在")
+    if u["name"] == "定时任务":
+        raise HTTPException(403, "系统用户不可删除")
     db.delete_user(user_id)
     return {"ok": True}
 

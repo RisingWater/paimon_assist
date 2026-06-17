@@ -84,9 +84,11 @@ export default function UserTab({ users, loading, onRefresh }: Props) {
                 </Space>
               }
               extra={
-                <Popconfirm title="确定删除该用户及其所有声纹？" onConfirm={() => handleDelete(u.id)}>
-                  <Button size="small" danger>删除</Button>
-                </Popconfirm>
+                u.name === "定时任务" ? null : (
+                  <Popconfirm title="确定删除该用户及其所有声纹？" onConfirm={() => handleDelete(u.id)}>
+                    <Button size="small" danger>删除</Button>
+                  </Popconfirm>
+                )
               }
             >
               <Typography.Text type="secondary" style={{ fontSize: 12 }}>
