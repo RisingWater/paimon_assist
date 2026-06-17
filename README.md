@@ -36,10 +36,13 @@ pip install -r requirements.txt
 cp .env.example .env
 # 编辑 .env 填入 DEEPSEEK_API_KEY
 
-# 4. 放置唤醒词模型
+# 4. 编译前端（可选，跳过则使用 fallback 页面）
+cd frontend && bun install && bun run build && cd ..
+
+# 5. 放置唤醒词模型
 #    将 paimeng.onnx 放到 models/ 目录
 
-# 5. 运行
+# 6. 运行
 python src/main.py                 # 完整模式
 python src/main.py --web-only      # 仅 Web 管理界面
 ```
@@ -47,6 +50,22 @@ python src/main.py --web-only      # 仅 Web 管理界面
 首次运行会自动下载 SenseVoiceSmall（STT）和 eres2netv2（声纹）模型。
 
 Web 管理界面：`http://localhost:8160`
+
+## Docker 部署
+
+```bash
+# 1. 构建镜像
+cd docker
+docker build -t paimon-assist -f Dockerfile ..
+
+# 2. 启动容器
+bash run_docker.sh
+```
+
+`run_docker.sh` 会自动创建 venv、安装依赖、启动 PulseAudio 音频服务、运行主程序。
+项目根目录整体挂载到容器 `/workdir`，修改源码、`run.sh`、`.env` 后重启容器即可，无需重新构建。
+
+Claude Code CLI 配置：将 `settings.json` 放到 `.claude/` 目录，容器启动时自动拷贝到 `~/.claude/`。
 
 ## 模块说明
 
