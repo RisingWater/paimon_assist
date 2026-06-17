@@ -21,9 +21,19 @@ def _patched_init(self, path, sess_options=None, providers=None, **kw):
 
 ort.InferenceSession.__init__ = _patched_init
 
+# ---- 日志 ----
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s %(name)s %(message)s",
+    datefmt="%H:%M:%S",
+)
+
 # ---- 标准库 & 业务模块 ----
 import asyncio
 import threading
+import time
+from datetime import datetime
 from config import THRESHOLD, VOICEPRINT_THRESHOLD
 import wakeword as ww
 from vits_tts import tts
@@ -59,8 +69,10 @@ async def main():
     async with ww.create_listener() as listener:
         while True:
             detection = await listener.wait_for_detection()
-            print(f">>> WAKE! score={detection.confidence:.4f}")
+            now = datetime.now().strftime("%H:%M:%S")
+            print(f"{now} >>> WAKE! score={detection.confidence:.4f}")
 
+            t0 = time.time()
             # 同步播放"我在呢"，播完立即开始录音
             await asyncio.to_thread(tts.wake_ack_sync)
 
@@ -78,19 +90,26 @@ async def main():
                 print(f"  Voiceprint: {speaker} user_id={user_id} sim={sim}")
 
             # 3. STT（用验证返回的新路径，文件已被移到 records/{user_id}/）
+            t1 = time.time()
             print("  STT...", end=" ", flush=True)
             text = await asyncio.to_thread(stt.transcribe, audio_path)
-            print(f"-> '{text}'")
+            print(f"-> '{text}' ({time.time()-t1:.1f}s)")
 
             # 4. LLM + 同步播放回复
             if text.strip():
+                t2 = time.time()
                 print(f"  DeepSeek...", end=" ", flush=True)
                 reply = await asyncio.to_thread(llm.chat, text, user_id or 0, speaker)
-                print(f"-> '{reply}'")
+                dt = time.time() - t2
+                print(f"-> '{reply}' ({dt:.1f}s)")
+
+                t3 = time.time()
                 await asyncio.to_thread(tts.speak_sync, reply)
+                if time.time() - t3 > 0.5:
+                    print(f"  TTS: {time.time()-t3:.1f}s")
             # 没说话 → 直接回到唤醒词检测
 
-            print(f"  Saved: {audio_path}\n")
+            print(f"  Saved: {audio_path}  [total={time.time()-t0:.1f}s]\n")
             counter += 1
 
 
