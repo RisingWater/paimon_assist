@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react"
 import { Layout, Tabs, Typography, App } from "antd"
-import { UserOutlined, AudioOutlined, MessageOutlined } from "@ant-design/icons"
+import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined } from "@ant-design/icons"
 import { api, type User } from "./api"
 import UserTab from "./components/UserTab"
 import VoiceprintTab from "./components/VoiceprintTab"
 import ChatTab from "./components/ChatTab"
+import ReminderTab from "./components/ReminderTab"
 
 const { Header, Content } = Layout
 
@@ -41,6 +42,11 @@ export default function Root() {
       key: "chat",
       label: <span><MessageOutlined /> 聊天历史</span>,
       children: <ChatTab users={users} />,
+    },
+    {
+      key: "reminders",
+      label: <span><ClockCircleOutlined /> 定时提醒</span>,
+      children: <ReminderTab />,
     },
   ]
 

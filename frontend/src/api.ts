@@ -113,4 +113,25 @@ export const api = {
   // Direct chat (bypass wakeword/STT)
   chat: (text: string, userId: number, speaker: string): Promise<{ reply: string }> =>
     post(`${BASE}/chat`, { text, user_id: userId, speaker }).then((r) => r.json()),
+
+  // Reminders
+  listReminders: (): Promise<Reminder[]> =>
+    fetch(`${BASE}/reminders`).then((r) => r.json()),
+
+  addReminder: (data: { content: string; rtype: string; datetime: string; lunar?: boolean }) =>
+    post(`${BASE}/reminders`, data).then((r) => r.json()),
+
+  deleteReminder: (id: number) =>
+    fetch(`${BASE}/reminders/${id}`, { method: "DELETE" }),
+}
+
+export interface Reminder {
+  id: number
+  user_id: number
+  content: string
+  rtype: string
+  datetime: string
+  lunar: boolean
+  done: boolean
+  created_at: string
 }

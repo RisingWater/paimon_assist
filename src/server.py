@@ -290,6 +290,41 @@ async def api_chat(req: ChatRequest):
     return {"reply": reply}
 
 
+# ---- 定时提醒 ----
+
+@app.get("/api/reminders")
+async def api_list_reminders():
+    return db.list_reminders(include_done=True)
+
+
+@app.post("/api/reminders")
+async def api_add_reminder(req: dict):
+    rid = db.add_reminder(
+        req.get("user_id", db._ensure_reminder_user()),
+        req["content"], req["rtype"], req["datetime"],
+        req.get("lunar", False),
+    )
+    return {"id": rid, "ok": True}
+
+
+@app.put("/api/reminders/{rid}")
+async def api_update_reminder(rid: int, req: dict):
+    # 简单实现：删除旧 + 添加新
+    db.delete_reminder(rid)
+    new_id = db.add_reminder(
+        req.get("user_id", db._ensure_reminder_user()),
+        req["content"], req["rtype"], req["datetime"],
+        req.get("lunar", False),
+    )
+    return {"id": new_id, "ok": True}
+
+
+@app.delete("/api/reminders/{rid}")
+async def api_delete_reminder(rid: int):
+    db.delete_reminder(rid)
+    return {"ok": True}
+
+
 # ---- SPA fallback（必须放在所有路由之后） ----
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
