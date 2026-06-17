@@ -94,6 +94,13 @@ if [ ! -d venv ]; then
     venv/bin/pip install -r requirements.txt -i https://mirrors.aliyun.com/pypi/simple/
 fi
 
+# ---- Claude Code 配置 ----
+if [ -f .claude/settings.json ]; then
+    mkdir -p ~/.claude
+    cp .claude/settings.json ~/.claude/settings.json
+    echo "Claude Code settings loaded"
+fi
+
 # ---- 启动应用 ----
 echo "Starting 派萌助手..."
 exec venv/bin/python3 src/main.py
