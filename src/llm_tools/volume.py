@@ -47,7 +47,7 @@ def get_volume(_args: dict = {}) -> str:
     },
 )
 def set_volume(args: dict) -> str:
-    vol = max(0, min(100, int(args["volume"])))
+    vol = max(0, min(200, int(args["volume"])))
     try:
         subprocess.run(
             ["pactl", "set-sink-volume", _SINK, f"{vol}%"],
