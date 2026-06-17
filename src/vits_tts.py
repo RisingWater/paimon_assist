@@ -206,7 +206,9 @@ class VitsTTS:
             try:
                 sentence, audio = audio_queue.get_nowait()
                 played[0] += 1
-                print(f"  [TTS {played[0]}/{len(merged)}] {sentence}")
+                from datetime import datetime as _dt
+                now = _dt.now().strftime("%H:%M:%S")
+                print(f"{now} [TTS {played[0]}/{len(merged)}] {sentence}")
                 current_chunk[0] = audio.tobytes()
                 return _callback(in_data, frame_count, time_info, status)
             except queue.Empty:
