@@ -32,11 +32,13 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/home_assistant_ac.py` | Home Assistant 空调控制 | `list_ac`, `control_ac` |
 | `src/llm_tools/home_tv.py` | Home Assistant 小米电视控制 | `get_tv_state`, `control_tv` |
 | `src/llm_tools/memory.py` | 长期记忆读写（memory.md） | `read_memory`, `save_memory` |
+| `src/llm_tools/reminder.py` | 定时提醒（一次性/每天/每月/农历） | `add_reminder`, `list_reminders`, `delete_reminder` |
+| `src/reminder_thread.py` | 定时提醒后台线程（每分钟检查） | `start()` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
 | `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `src/tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
 | `src/vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
-| `frontend/` | React + Vite + antd 前端（3 tabs） | bun run dev / bun run build |
+| `frontend/` | React + Vite + antd 前端（4 tabs） | bun run dev / bun run build |
 
 ## 运行方式
 
@@ -63,6 +65,8 @@ voiceprints (id, user_id, vector BLOB, audio_path, type, created_at)
 chat_history (id, user_id, role, content, created_at)
   → LLM 对话按 user_id 独立存储
   → tool_calls 消息存为完整 JSON
+reminders (id, user_id, content, rtype, datetime, lunar, done, created_at)
+  → rtype: once/daily/monthly, lunar: 0=公历 1=农历
 memory.md           ← 长期记忆文件（不提交 git）
 ```
 
@@ -90,6 +94,9 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `control_tv` | 控制小米电视开关（关=进入音响模式） |
 | `read_memory` | 读取长期记忆（用户身份、偏好、房间归属） |
 | `save_memory` | 向长期记忆追加新信息 |
+| `add_reminder` | 添加定时提醒（一次性/每天/每月/农历） |
+| `list_reminders` | 列出所有未完成提醒 |
+| `delete_reminder` | 删除指定提醒 |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register()` 装饰 → 在 `__init__.py` 导入。
