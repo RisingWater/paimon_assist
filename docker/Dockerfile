@@ -75,9 +75,5 @@ RUN git config --global --add safe.directory "*"
 
 WORKDIR /workdir
 
-# 入口脚本
-COPY docker/run.sh /workdir/run.sh
-RUN chmod +x /workdir/run.sh
-
 USER appuser
-CMD ["/workdir/run.sh"]
+CMD ["/workdir/docker/run.sh"]
