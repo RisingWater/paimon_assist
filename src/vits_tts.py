@@ -187,35 +187,54 @@ class VitsTTS:
 
         threading.Thread(target=_producer, daemon=True).start()
 
+        audio_queue: queue.Queue = queue.Queue()
+        synth_done = threading.Event()
         sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
-        played = [0]
-        ring = bytearray()  # 环形缓冲区，回调从这里取数据写设备
+
+        # 第一句提前合成入队，消除首句延迟
+        _log.info("[TTS 1/%d start] %s", len(merged), merged[0])
+        audio_queue.put(self.synthesize(merged[0]).tobytes())
 
         def _producer():
-            """后台合成每一句，追加到环形缓冲区"""
-            for i, s in enumerate(merged):
+            for i, s in enumerate(merged[1:], 1):
                 _log.info("[TTS %d/%d start] %s", i + 1, len(merged), s)
-                audio = self.synthesize(s)
-                ring.extend(audio.tobytes())
+                audio_queue.put(self.synthesize(s).tobytes())
             synth_done.set()
 
         threading.Thread(target=_producer, daemon=True).start()
 
+        current_chunk: bytes | None = None
+        offset = 0
+
         def _callback(in_data, frame_count, time_info, status):
+            nonlocal current_chunk, offset
             needed = frame_count * 4
-            if len(ring) >= needed:
-                data = bytes(ring[:needed])
-                del ring[:needed]
-                return (data, pyaudio.paContinue)
-            elif len(ring) > 0:
-                # 不够一帧，补静音
-                data = bytes(ring) + b"\x00" * (needed - len(ring))
-                ring.clear()
-                return (data, pyaudio.paContinue)
-            elif synth_done.is_set():
+            buf = bytearray()
+
+            while len(buf) < needed:
+                if current_chunk is None:
+                    if synth_done.is_set() and audio_queue.empty():
+                        break
+                    try:
+                        current_chunk = audio_queue.get(timeout=0.01)
+                        offset = 0
+                    except queue.Empty:
+                        break
+
+                remaining = len(current_chunk) - offset
+                take = min(remaining, needed - len(buf))
+                buf.extend(current_chunk[offset:offset + take])
+                offset += take
+                if offset >= len(current_chunk):
+                    current_chunk = None
+
+            if len(buf) == 0 and synth_done.is_set():
                 return (b"\x00" * needed, pyaudio.paComplete)
+            elif len(buf) < needed:
+                buf.extend(b"\x00" * (needed - len(buf)))
+                return (bytes(buf), pyaudio.paContinue)
             else:
-                return (b"\x00" * needed, pyaudio.paContinue)
+                return (bytes(buf), pyaudio.paContinue)
 
         pa = pyaudio.PyAudio()
         stream = pa.open(
