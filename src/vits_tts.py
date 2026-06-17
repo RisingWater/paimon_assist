@@ -189,40 +189,39 @@ class VitsTTS:
 
         sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
         played = [0]
-        current_chunk = [None]   # 当前正在播放的音频剩余部分
+        current_data = [None]
 
         def _callback(in_data, frame_count, time_info, status):
-            needed = frame_count * 4  # float32 = 4 bytes per sample
+            needed = frame_count * 4
 
-            # 上一句还有剩余，继续输出
-            if current_chunk[0] is not None:
-                data = current_chunk[0]
+            if current_data[0] is not None:
+                data = current_data[0]
                 if len(data) >= needed:
-                    current_chunk[0] = data[needed:] if len(data) > needed else None
+                    current_data[0] = data[needed:] if len(data) > needed else None
                     return (data[:needed], pyaudio.paContinue)
                 else:
-                    # 剩余不够一帧，补静音，清空
-                    current_chunk[0] = None
+                    current_data[0] = None
                     return (data + b"\x00" * (needed - len(data)), pyaudio.paContinue)
 
-            # 取下一句
             try:
                 sentence, audio = audio_queue.get_nowait()
                 played[0] += 1
-                _log.info("[TTS %d/%d] %s", played[0], len(merged), sentence)
-                current_chunk[0] = audio.tobytes()
+                _log.info("[TTS %d/%d start] %s", played[0], len(merged), sentence)
+                raw = audio.tobytes()
+                # 句尾加 50ms 静音，消除句子间 underrun
+                current_data[0] = raw + b"\x00" * int(sr * 0.05 * 4)
                 return _callback(in_data, frame_count, time_info, status)
             except queue.Empty:
                 if synth_done.is_set():
                     return (b"", pyaudio.paComplete)
-                else:
-                    return (b"\x00" * needed, pyaudio.paContinue)
+                return (b"\x00" * needed, pyaudio.paContinue)
 
         pa = pyaudio.PyAudio()
         stream = pa.open(
             format=pyaudio.paFloat32, channels=1, rate=sr,
             output=True, output_device_index=self.play_device,
             stream_callback=_callback,
+            frames_per_buffer=int(sr * 0.05),  # 50ms buffer
         )
         stream.start_stream()
         while stream.is_active():
