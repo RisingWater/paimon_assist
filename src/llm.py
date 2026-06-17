@@ -9,10 +9,7 @@ import llm_tools
 
 _log = logging.getLogger(__name__)
 
-_TODAY = datetime.now().strftime("%Y年%m月%d日 %A")
-
-_DEFAULT_RULES = (
-    f"今天是{_TODAY}。"
+_DEFAULT_RULES_PREFIX = (
     "你是派萌，一个可爱的AI助手。你的回答会通过语音播放给用户听。"
     "每条用户消息前会标注说话人的名字，你可以根据名字来称呼对方。"
     "规则："
@@ -38,17 +35,21 @@ _DEFAULT_RULES = (
     "查看/删除提醒用 list_reminders/delete_reminder。"
 )
 
-_SYSTEM = {"role": "system", "content": _DEFAULT_RULES}
+def _build_system() -> dict:
+    """构建带当前时间的 system prompt"""
+    now = datetime.now().strftime("现在是%Y年%m月%d日 %A %H:%M。")
+    return {"role": "system", "content": now + _DEFAULT_RULES_PREFIX}
 
 
 def _get_history(user_id: int) -> list[dict]:
-    """从 DB 加载对话历史，始终使用最新的 system prompt"""
+    """从 DB 加载对话历史，始终使用最新的 system prompt（含当前时间）"""
+    system = _build_system()
     rows = db.load_history(user_id)
     if not rows:
-        db.append_message(user_id, "system", _SYSTEM["content"])
-        return [_SYSTEM]
+        db.append_message(user_id, "system", system["content"])
+        return [system]
 
-    messages = [_SYSTEM]
+    messages = [system]
     for r in rows:
         if r["role"] == "system":
             continue
