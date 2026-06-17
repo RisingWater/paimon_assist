@@ -1,4 +1,5 @@
 """VAD 录音 — 检测到静音后自动停止"""
+import logging
 import os
 import time
 import wave
@@ -7,6 +8,7 @@ import numpy as np
 from silero_vad import load_silero_vad, get_speech_timestamps
 from config import SAMPLE_RATE, VAD_SILENCE_MS, MAX_RECORD_SECONDS
 
+_log = logging.getLogger(__name__)
 RECORDINGS_DIR = "recordings"
 
 
@@ -28,7 +30,7 @@ def record(counter: int) -> str:
     frames: list[bytes] = []
     max_frames = int(SAMPLE_RATE * MAX_RECORD_SECONDS / 512)
 
-    print("  Recording...", end=" ", flush=True)
+    _log.info("Recording...")
 
     for i in range(max_frames):
         data = stream.read(512, exception_on_overflow=False)
@@ -74,5 +76,5 @@ def record(counter: int) -> str:
     wf.writeframes(all_audio)
     wf.close()
 
-    print(f"({duration:.1f}s)")
+    _log.info("Recorded %.1fs", duration)
     return filename

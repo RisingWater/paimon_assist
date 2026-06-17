@@ -1,8 +1,11 @@
 """语音转文字（STT）— FunASR SenseVoiceSmall"""
+import logging
 import re
 from funasr import AutoModel
 from funasr.utils.postprocess_utils import rich_transcription_postprocess
 from config import DISABLE_UPDATE
+
+_log = logging.getLogger(__name__)
 
 
 class STT:
@@ -14,13 +17,13 @@ class STT:
 
     def load(self):
         """加载 STT 模型（启动时调用一次）"""
-        print("Loading SenseVoiceSmall...", end=" ", flush=True)
+        _log.info("Loading SenseVoiceSmall...")
         self._model = AutoModel(
             model=self.model_path,
             device="cpu",
             disable_update=DISABLE_UPDATE,
         )
-        print("Done")
+        _log.info("SenseVoiceSmall loaded")
 
     def transcribe(self, wav_path: str) -> str:
         """识别音频文件，返回纯文本；无有效语音时返回空字符串"""

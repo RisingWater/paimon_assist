@@ -1,10 +1,12 @@
 """声纹提取与验证 — ModelScope 中文声纹模型"""
+import logging
 import os
 import shutil
 import numpy as np
 from config import VOICEPRINT_MODEL, VOICEPRINT_THRESHOLD
 import db
 
+_log = logging.getLogger(__name__)
 _pipeline = None
 RECORDINGS_DIR = "recordings"
 
@@ -27,12 +29,12 @@ def load():
     from modelscope.pipelines import pipeline
     from modelscope.utils.constant import Tasks
 
-    print("Loading voiceprint model...", end=" ", flush=True)
+    _log.info("Loading voiceprint model...")
     _pipeline = pipeline(
         task=Tasks.speaker_verification,
         model=VOICEPRINT_MODEL,
     )
-    print("Done")
+    _log.info("Voiceprint model loaded")
 
 
 def extract(wav_path: str) -> np.ndarray:

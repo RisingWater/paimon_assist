@@ -33,8 +33,9 @@ logging.basicConfig(
 import asyncio
 import threading
 import time
-from datetime import datetime
 from config import THRESHOLD, VOICEPRINT_THRESHOLD
+
+_log = logging.getLogger("main")
 import wakeword as ww
 from vits_tts import tts
 import vad
@@ -49,7 +50,7 @@ def _start_webserver():
     import uvicorn
     from server import app
     port = 8160
-    print(f"\n🌐 声纹管理界面: http://localhost:{port}\n")
+    _log.info("Web UI: http://localhost:%d", port)
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
 
@@ -61,16 +62,14 @@ async def main():
     tts.load()
     reminder_thread.start()
 
-    print(f"Threshold: {THRESHOLD}")
-    print(f"Voiceprint threshold: {VOICEPRINT_THRESHOLD}")
-    print("Listening... Ctrl+C to stop.\n")
+    _log.info("Threshold=%.2f Voiceprint=%.2f", THRESHOLD, VOICEPRINT_THRESHOLD)
+    _log.info("Listening... Ctrl+C to stop")
 
     counter = 0
     async with ww.create_listener() as listener:
         while True:
             detection = await listener.wait_for_detection()
-            now = datetime.now().strftime("%H:%M:%S")
-            print(f"{now} >>> WAKE! score={detection.confidence:.4f}")
+            _log.info("WAKE! score=%.4f", detection.confidence)
 
             t0 = time.time()
             # 同步播放"我在呢"，播完立即开始录音
@@ -83,34 +82,34 @@ async def main():
             user_id, info, audio_path = await asyncio.to_thread(voiceprint.verify, filename)
             if info.startswith("enrolled:"):
                 speaker = ""
-                print(f"  Voiceprint: ENROLLED (user_id={user_id})")
+                _log.info("Voiceprint: ENROLLED (user_id=%d)", user_id)
             else:
                 speaker = info.rsplit(":", 1)[0]
                 sim = info.split(":")[-1]
-                print(f"  Voiceprint: {speaker} user_id={user_id} sim={sim}")
+                _log.info("Voiceprint: %s user_id=%d sim=%s", speaker, user_id, sim)
 
             # 3. STT（用验证返回的新路径，文件已被移到 records/{user_id}/）
             t1 = time.time()
-            print("  STT...", end=" ", flush=True)
+            _log.info("STT...")
             text = await asyncio.to_thread(stt.transcribe, audio_path)
-            print(f"-> '{text}' ({time.time()-t1:.1f}s)")
+            _log.info("STT: '%s' (%.1fs)", text, time.time()-t1)
 
             # 4. LLM + 同步播放回复
             if text.strip():
                 t2 = time.time()
-                print(f"  DeepSeek...", end=" ", flush=True)
+                _log.info("DeepSeek...")
                 reply = await asyncio.to_thread(llm.chat, text, user_id or 0, speaker)
                 dt = time.time() - t2
-                print(f"-> '{reply}' ({dt:.1f}s)")
+                _log.info("LLM: '%s' (%.1fs)", reply, dt)
 
                 if reply:
                     t3 = time.time()
                     await asyncio.to_thread(tts.speak_sync, reply)
                     if time.time() - t3 > 0.5:
-                        print(f"  TTS: {time.time()-t3:.1f}s")
+                        _log.info("TTS playback: %.1fs", time.time()-t3)
             # 没说话 → 直接回到唤醒词检测
 
-            print(f"  Saved: {audio_path}  [total={time.time()-t0:.1f}s]\n")
+            _log.info("Saved: %s [total=%.1fs]", audio_path, time.time()-t0)
             counter += 1
 
 
@@ -129,11 +128,11 @@ if __name__ == "__main__":
         import uvicorn
         from server import app
 
-        print("Web-only mode: http://localhost:8160")
+        _log.info("Web-only mode: http://localhost:8160")
         reminder_thread.start()
         uvicorn.run(app, host="0.0.0.0", port=8160, log_level="info")
     else:
         try:
             asyncio.run(main())
         except KeyboardInterrupt:
-            print("\nStopped.")
+            _log.info("Stopped")

@@ -80,7 +80,7 @@ class VitsTTS:
 
     def load(self):
         """加载 VITS 模型（启动时调用一次）"""
-        print("Loading VITS paimon...", end=" ", flush=True)
+        _log.info("Loading VITS paimon...")
 
         info = _load_config(self.config)
         hps = info["hps"]
@@ -96,7 +96,7 @@ class VitsTTS:
         self._model.eval()
 
         utils.load_checkpoint(self.checkpoint, self._model, None)
-        print("Done")
+        _log.info("VITS paimon loaded")
 
     # ---- 合成 ----
 
