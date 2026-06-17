@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 class TTSRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000)
     length_scale: float = Field(default=1.0, gt=0)
+    play: bool = Field(default=True, description="是否播放音频")
 
 
 class TTSResponse(BaseModel):
@@ -54,6 +55,9 @@ async def text_to_speech(req: TTSRequest):
         logger.info(f"TTS cache hit: {text[:30]}...")
         import soundfile as sf
         info = sf.info(str(cached_hit))
+        if req.play:
+            audio, _ = sf.read(str(cached_hit), dtype="float32")
+            vits_tts.tts._play(audio)
         return TTSResponse(cached=True, file=str(cached_hit), duration_ms=int(info.duration * 1000))
 
     # 调用 VITS（内部也会查缓存 + 写缓存）
@@ -67,6 +71,10 @@ async def text_to_speech(req: TTSRequest):
     # synthesize 内部已写缓存，直接拿路径
     path = _cache.get(text)
     duration_ms = int(len(audio) / vits_tts.tts.sample_rate * 1000)
+
+    # 播放
+    if req.play:
+        vits_tts.tts._play(audio)
 
     return TTSResponse(cached=False, file=str(path), duration_ms=duration_ms)
 
