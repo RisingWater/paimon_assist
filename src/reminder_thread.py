@@ -16,10 +16,10 @@ def _check_and_notify():
     if not due:
         return
 
+    uid = db._ensure_reminder_user()
     for r in due:
         _log.info("Reminder triggered: #%d %s", r["id"], r["content"])
         try:
-            uid = db._ensure_reminder_user()
             reply = llm.chat(
                 f"[定时任务] 现在到了执行以下任务的时间：{r['content']}。请执行这个任务，如果需要用到工具就直接调用，完成后告知结果。",
                 user_id=uid,
@@ -56,6 +56,8 @@ def start():
     global _thread
     if _thread is not None:
         return
+    import db
+    db._ensure_reminder_user()
     _thread = threading.Thread(target=_loop, daemon=True)
     _thread.start()
     _log.info("Reminder thread started (every 5min)")
