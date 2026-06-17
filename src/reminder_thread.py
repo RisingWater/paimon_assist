@@ -21,7 +21,7 @@ def _check_and_notify():
         try:
             uid = db._ensure_reminder_user()
             reply = llm.chat(
-                f"[定时提醒] {r['content']}。请用自然语言提醒我。",
+                f"[定时任务] 现在到了执行以下任务的时间：{r['content']}。请执行这个任务，如果需要用到工具就直接调用，完成后告知结果。",
                 user_id=uid,
                 speaker="定时任务",
             )
