@@ -57,7 +57,8 @@ WORKDIR /workdir
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get update && apt-get install -y nodejs && \
     rm -rf /var/lib/apt/lists/* && \
-    npm install -g @anthropic-ai/claude-code
+    npm install -g @anthropic-ai/claude-code && \
+    npm install -g bun
 
 USER appuser
 CMD ["bash", "docker/run.sh"]

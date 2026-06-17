@@ -9,6 +9,11 @@ if [ -d .git ] && git status &> /dev/null; then
     git pull || true
 fi
 
+cd /workdir/frontend
+bun install
+bun run build
+cd /workdir
+
 # ---- PulseAudio ----
 echo "Shutdown PulseAudio if exist..."
 
