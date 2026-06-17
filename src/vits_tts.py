@@ -5,6 +5,7 @@ VITS 模型代码来自官方 jaywalnut310/vits（MIT License）。
 """
 import asyncio
 import json
+import logging
 import queue
 import re
 import threading
@@ -14,6 +15,8 @@ import numpy as np
 import soundfile as sf
 import torch
 import pyaudio
+
+_log = logging.getLogger(__name__)
 
 from vits import commons
 from vits import utils
@@ -206,9 +209,7 @@ class VitsTTS:
             try:
                 sentence, audio = audio_queue.get_nowait()
                 played[0] += 1
-                from datetime import datetime as _dt
-                now = _dt.now().strftime("%H:%M:%S")
-                print(f"{now} [TTS {played[0]}/{len(merged)}] {sentence}")
+                _log.info("[TTS %d/%d] %s", played[0], len(merged), sentence)
                 current_chunk[0] = audio.tobytes()
                 return _callback(in_data, frame_count, time_info, status)
             except queue.Empty:
