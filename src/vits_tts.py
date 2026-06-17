@@ -5,6 +5,8 @@ VITS 模型代码来自官方 jaywalnut310/vits（MIT License）。
 """
 import asyncio
 import json
+import queue
+import re
 import threading
 from pathlib import Path
 
@@ -146,9 +148,60 @@ class VitsTTS:
         threading.Thread(target=_run, daemon=True).start()
 
     def speak_sync(self, text: str):
-        """合成并播放（阻塞直到播放完成）"""
-        audio = self.synthesize(text)
-        self._play(audio)
+        """合成并播放（阻塞直到播放完成）
+
+        长文本按句拆分，TTS 合成一句就入队播放，后台继续合下一句。
+        首句延迟大幅降低。
+        """
+        sentences = re.split(r"(?<=[。！？；\n])", text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if not sentences:
+            return
+
+        # 合并短句（< 5 字并到下一句）
+        merged = []
+        i = 0
+        while i < len(sentences):
+            chunk = sentences[i]
+            while len(chunk) < 5 and i + 1 < len(sentences):
+                i += 1
+                chunk += sentences[i]
+            merged.append(chunk)
+            i += 1
+
+        if len(merged) == 1:
+            self._play(self.synthesize(merged[0]))
+            return
+
+        # 生产者-消费者：合成一句 → 入队 → 主线程立即播放
+        audio_queue: queue.Queue = queue.Queue()
+        synth_done = threading.Event()
+
+        def _producer():
+            for s in merged:
+                audio_queue.put(self.synthesize(s))
+            synth_done.set()
+
+        threading.Thread(target=_producer, daemon=True).start()
+
+        sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
+        pa = pyaudio.PyAudio()
+        stream = pa.open(
+            format=pyaudio.paFloat32, channels=1, rate=sr,
+            output=True, output_device_index=self.play_device,
+        )
+
+        # 边合边播：有就播，合完且队列空才退出
+        while not synth_done.is_set() or not audio_queue.empty():
+            try:
+                audio = audio_queue.get(timeout=0.1)
+                stream.write(audio.tobytes())
+            except queue.Empty:
+                pass
+
+        stream.stop_stream()
+        stream.close()
+        pa.terminate()
 
     def _play(self, audio: np.ndarray):
         """通过 PyAudio 播放音频"""
