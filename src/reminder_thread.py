@@ -1,4 +1,4 @@
-"""定时提醒后台线程 — 每 5 分钟检查一次到期提醒，通知 LLM"""
+"""定时提醒后台线程 — 每分钟检查一次到期提醒，通知 LLM"""
 import asyncio
 import logging
 import time
@@ -41,7 +41,7 @@ def _check_and_notify():
 def _loop():
     """后台循环：每 5 分钟检查一次"""
     while True:
-        time.sleep(300)
+        time.sleep(60)
         try:
             _check_and_notify()
         except Exception as e:
@@ -60,4 +60,4 @@ def start():
     db._ensure_reminder_user()
     _thread = threading.Thread(target=_loop, daemon=True)
     _thread.start()
-    _log.info("Reminder thread started (every 5min)")
+    _log.info("Reminder thread started (every 1min)")
