@@ -20,7 +20,7 @@ from fastapi.staticfiles import StaticFiles
 
 _FRONTEND_DIST = "frontend/dist"
 if _os.path.isdir(_FRONTEND_DIST):
-    app.mount("/assets", StaticFiles(directory=f"{_FRONTEND_DIST}/assets"), name="assets")
+    app.mount("/assets", StaticFiles(directory=f"{_FRONTEND_DIST}/assets"), name="spa-assets")
 
 _INDEX_HTML = """<!DOCTYPE html>
 <html lang="zh">
@@ -293,5 +293,8 @@ async def api_chat(req: ChatRequest):
 # ---- SPA fallback（必须放在所有路由之后） ----
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
+    # API 和静态资源不走 fallback
+    if path.startswith("api/") or path.startswith("assets/"):
+        raise HTTPException(404)
     from fastapi.responses import HTMLResponse
     return HTMLResponse(_INDEX_HTML)
