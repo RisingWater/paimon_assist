@@ -101,6 +101,7 @@ DeepSeek 自动调用工具获取实时信息：
 | `get_tv_state` / `control_tv` | 查看/控制小米电视（关=进入音响模式） |
 | `read_memory` / `save_memory` | 长期记忆读写（用户身份、房间归属等） |
 | `add_reminder` / `list_reminders` / `delete_reminder` | 定时提醒（一次性/每天/每月/农历） |
+| `get_volume` / `set_volume` | 查询/设置音量百分比 |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 工具调用时如果有提示语（如"让我查一下哦"），会立刻后台 TTS 播放，搜索和 LLM 回复流程不受影响。
