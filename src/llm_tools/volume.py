@@ -40,7 +40,7 @@ def get_volume(_args: dict = {}) -> str:
         "properties": {
             "volume": {
                 "type": "integer",
-                "description": "音量百分比，0-100，如 50",
+                "description": "音量百分比，0-200，如 50",
             }
         },
         "required": ["volume"],

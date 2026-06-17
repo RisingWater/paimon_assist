@@ -99,7 +99,7 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `list_reminders` | 列出所有未完成提醒 |
 | `delete_reminder` | 删除指定提醒 |
 | `get_volume` | 查询当前扬声器音量百分比 |
-| `set_volume` | 设置扬声器音量（0-100%） |
+| `set_volume` | 设置扬声器音量（0-200%） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register()` 装饰 → 在 `__init__.py` 导入。
