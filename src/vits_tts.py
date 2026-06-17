@@ -188,37 +188,45 @@ class VitsTTS:
         threading.Thread(target=_producer, daemon=True).start()
 
         sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
-        SILENCE = b"\x00" * int(sr * 0.05 * 4)  # 50ms 静音
+        played = [0]
+        ring = bytearray()  # 环形缓冲区，回调从这里取数据写设备
 
         def _producer():
-            """后台合成每一句，入队"""
+            """后台合成每一句，追加到环形缓冲区"""
             for i, s in enumerate(merged):
                 _log.info("[TTS %d/%d start] %s", i + 1, len(merged), s)
-                audio_queue.put(self.synthesize(s).tobytes())
+                audio = self.synthesize(s)
+                ring.extend(audio.tobytes())
             synth_done.set()
 
         threading.Thread(target=_producer, daemon=True).start()
+
+        def _callback(in_data, frame_count, time_info, status):
+            needed = frame_count * 4
+            if len(ring) >= needed:
+                data = bytes(ring[:needed])
+                del ring[:needed]
+                return (data, pyaudio.paContinue)
+            elif len(ring) > 0:
+                # 不够一帧，补静音
+                data = bytes(ring) + b"\x00" * (needed - len(ring))
+                ring.clear()
+                return (data, pyaudio.paContinue)
+            elif synth_done.is_set():
+                return (b"\x00" * needed, pyaudio.paComplete)
+            else:
+                return (b"\x00" * needed, pyaudio.paContinue)
 
         pa = pyaudio.PyAudio()
         stream = pa.open(
             format=pyaudio.paFloat32, channels=1, rate=sr,
             output=True, output_device_index=self.play_device,
-            frames_per_buffer=int(sr * 0.05),
+            stream_callback=_callback,
         )
-
-        while not synth_done.is_set() or not audio_queue.empty():
-            try:
-                chunk = audio_queue.get(timeout=0.05)
-                # 分批写入，让 stream 缓冲区有喘息空间
-                pos = 0
-                while pos < len(chunk):
-                    end = min(pos + int(sr * 0.1 * 4), len(chunk))
-                    stream.write(chunk[pos:end])
-                    pos = end
-            except queue.Empty:
-                # 队列空了就送静音，避免 underrun
-                stream.write(SILENCE)
-
+        stream.start_stream()
+        while stream.is_active():
+            import time as _time
+            _time.sleep(0.05)
         stream.stop_stream()
         stream.close()
         pa.terminate()
