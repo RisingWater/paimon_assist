@@ -33,7 +33,7 @@ _DEFAULT_RULES_PREFIX = (
     "了解到新信息（如'王旭住主卧'）后调 save_memory 记录。"
     "13. 用户要求定时提醒/定时任务时，用 add_reminder 添加。"
     "查看/删除提醒用 list_reminders/delete_reminder。"
-    "14. 调节音量用 get_volume/set_volume，参数是百分比数字。"
+    "14. 调节音量用 get_volume/set_volume，参数是百分比数字，最大可以到200%。"
 )
 
 def _build_system() -> dict:
