@@ -70,7 +70,7 @@ if [ "$PULSE_STARTED" = true ]; then
     if [ -n "$SINK_MODULE" ]; then
         echo "ALSA sink loaded, module: $SINK_MODULE"
         pactl set-default-sink alsa_output
-        pactl set-sink-volume alsa_output 80%
+        pactl set-sink-volume alsa_output 150%
     else
         echo "WARNING: ALSA sink load failed, speaker may not work"
     fi
