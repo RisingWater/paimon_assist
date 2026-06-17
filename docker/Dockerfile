@@ -8,6 +8,9 @@ RUN sed -i 's/archive.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list && 
     sed -i 's/security.ubuntu.com/mirrors.aliyun.com/g' /etc/apt/sources.list
 
 # 系统依赖 + Python 虚拟环境
+# 添加 NodeSource（npm/Node.js 22.x，用于 Claude Code CLI）
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+
 RUN apt-get update && apt-get install -y \
     sudo \
     git \
@@ -16,6 +19,7 @@ RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    nodejs \
     alsa-utils \
     pulseaudio \
     pulseaudio-utils \
@@ -48,6 +52,9 @@ RUN locale-gen zh_CN.UTF-8 && update-locale LANG=zh_CN.UTF-8
 ENV LANG=zh_CN.UTF-8
 ENV LANGUAGE=zh_CN:zh
 ENV LC_ALL=zh_CN.UTF-8
+
+# Claude Code CLI（web_search 工具使用）
+RUN npm install -g @anthropic-ai/claude-code
 
 RUN git config --global --add safe.directory "*"
 
