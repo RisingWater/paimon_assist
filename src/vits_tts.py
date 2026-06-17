@@ -188,45 +188,37 @@ class VitsTTS:
         threading.Thread(target=_producer, daemon=True).start()
 
         sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
-        played = [0]
-        current_data = [None]
+        SILENCE = b"\x00" * int(sr * 0.05 * 4)  # 50ms 静音
 
-        def _callback(in_data, frame_count, time_info, status):
-            needed = frame_count * 4
+        def _producer():
+            """后台合成每一句，入队"""
+            for i, s in enumerate(merged):
+                _log.info("[TTS %d/%d start] %s", i + 1, len(merged), s)
+                audio_queue.put(self.synthesize(s).tobytes())
+            synth_done.set()
 
-            if current_data[0] is not None:
-                data = current_data[0]
-                if len(data) >= needed:
-                    current_data[0] = data[needed:] if len(data) > needed else None
-                    return (data[:needed], pyaudio.paContinue)
-                else:
-                    current_data[0] = None
-                    return (data + b"\x00" * (needed - len(data)), pyaudio.paContinue)
-
-            try:
-                sentence, audio = audio_queue.get_nowait()
-                played[0] += 1
-                _log.info("[TTS %d/%d start] %s", played[0], len(merged), sentence)
-                raw = audio.tobytes()
-                # 句尾加 50ms 静音，消除句子间 underrun
-                current_data[0] = raw + b"\x00" * int(sr * 0.05 * 4)
-                return _callback(in_data, frame_count, time_info, status)
-            except queue.Empty:
-                if synth_done.is_set():
-                    return (b"", pyaudio.paComplete)
-                return (b"\x00" * needed, pyaudio.paContinue)
+        threading.Thread(target=_producer, daemon=True).start()
 
         pa = pyaudio.PyAudio()
         stream = pa.open(
             format=pyaudio.paFloat32, channels=1, rate=sr,
             output=True, output_device_index=self.play_device,
-            stream_callback=_callback,
-            frames_per_buffer=int(sr * 0.05),  # 50ms buffer
+            frames_per_buffer=int(sr * 0.05),
         )
-        stream.start_stream()
-        while stream.is_active():
-            import time as _time
-            _time.sleep(0.05)
+
+        while not synth_done.is_set() or not audio_queue.empty():
+            try:
+                chunk = audio_queue.get(timeout=0.05)
+                # 分批写入，让 stream 缓冲区有喘息空间
+                pos = 0
+                while pos < len(chunk):
+                    end = min(pos + int(sr * 0.1 * 4), len(chunk))
+                    stream.write(chunk[pos:end])
+                    pos = end
+            except queue.Empty:
+                # 队列空了就送静音，避免 underrun
+                stream.write(SILENCE)
+
         stream.stop_stream()
         stream.close()
         pa.terminate()
