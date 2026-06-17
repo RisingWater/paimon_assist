@@ -146,9 +146,31 @@ class VitsTTS:
         threading.Thread(target=_run, daemon=True).start()
 
     def speak_sync(self, text: str):
-        """合成并播放（阻塞直到播放完成）"""
-        audio = self.synthesize(text)
-        self._play(audio)
+        """合成并播放（阻塞直到播放完成）
+
+        长文本按标点拆句，第一句合完立刻播，后续句子并行合成。
+        """
+        import re
+        sentences = re.split(r"(?<=[。！？；\n])", text)
+        sentences = [s.strip() for s in sentences if s.strip()]
+        if len(sentences) <= 1:
+            self._play(self.synthesize(text))
+            return
+
+        sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
+        pa = pyaudio.PyAudio()
+        stream = pa.open(
+            format=pyaudio.paFloat32, channels=1, rate=sr,
+            output=True, output_device_index=self.play_device,
+        )
+
+        for i, s in enumerate(sentences):
+            audio = self.synthesize(s)
+            stream.write(audio.tobytes())
+
+        stream.stop_stream()
+        stream.close()
+        pa.terminate()
 
     def _play(self, audio: np.ndarray):
         """通过 PyAudio 播放音频"""
