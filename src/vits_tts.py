@@ -193,6 +193,10 @@ class VitsTTS:
 
         # 边合边播：有就播，合完且队列空才退出
         played = 0
+        # 句子间隙等下一句时避免 ALSA underrun 刷屏
+        import os as _os2
+        _os2.environ.setdefault("ALSA_IGNORE_ERRORS", "1")
+
         while not synth_done.is_set() or not audio_queue.empty():
             try:
                 sentence, audio = audio_queue.get(timeout=0.1)
