@@ -103,10 +103,11 @@ async def main():
                 dt = time.time() - t2
                 print(f"-> '{reply}' ({dt:.1f}s)")
 
-                t3 = time.time()
-                await asyncio.to_thread(tts.speak_sync, reply)
-                if time.time() - t3 > 0.5:
-                    print(f"  TTS: {time.time()-t3:.1f}s")
+                if reply:
+                    t3 = time.time()
+                    await asyncio.to_thread(tts.speak_sync, reply)
+                    if time.time() - t3 > 0.5:
+                        print(f"  TTS: {time.time()-t3:.1f}s")
             # 没说话 → 直接回到唤醒词检测
 
             print(f"  Saved: {audio_path}  [total={time.time()-t0:.1f}s]\n")

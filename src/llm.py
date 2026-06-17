@@ -174,5 +174,5 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 db.append_message(user_id, "assistant", reply)
         return reply or "（无回复）"
     except Exception as e:
-        import traceback
-        return f"Request failed: {e}\n{traceback.format_exc()}"
+        _log.error("LLM chat error: %s", e)
+        return ""

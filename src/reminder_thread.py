@@ -42,7 +42,7 @@ def _check_and_notify():
             continue
 
         _log.info("Reminder LLM reply: %s", reply[:100] if reply else "(empty)")
-        if reply and "失败" not in reply:
+        if reply:
             try:
                 from vits_tts import tts as _tts
                 _tts.speak_sync(reply)
