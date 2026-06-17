@@ -42,8 +42,35 @@ def _connect() -> sqlite3.Connection:
             FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS reminders (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id    INTEGER NOT NULL,
+            content    TEXT    NOT NULL,
+            rtype      TEXT    NOT NULL DEFAULT 'once',
+            datetime   TEXT    NOT NULL,
+            lunar      INTEGER NOT NULL DEFAULT 0,
+            done       INTEGER NOT NULL DEFAULT 0,
+            created_at TEXT    DEFAULT (datetime('now','localtime')),
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
     conn.commit()
     return conn
+
+
+def _ensure_reminder_user() -> int:
+    """确保存在一个"定时任务"系统用户，返回其 user_id"""
+    conn = _connect()
+    row = conn.execute("SELECT id FROM users WHERE name='定时任务'").fetchone()
+    if row:
+        conn.close()
+        return row[0]
+    cur = conn.execute("INSERT INTO users (name) VALUES ('定时任务')")
+    conn.commit()
+    uid = cur.lastrowid
+    conn.close()
+    return uid
 
 
 # ============================================================
@@ -323,3 +350,90 @@ def clear_history(user_id: int):
     conn.execute("DELETE FROM chat_history WHERE user_id=?", (user_id,))
     conn.commit()
     conn.close()
+
+
+# ============================================================
+# 定时提醒操作
+# ============================================================
+
+def add_reminder(user_id: int, content: str, rtype: str, dt: str, lunar: bool = False) -> int:
+    """添加提醒。rtype: once/daily/monthly, dt: '2026-06-18 21:00'/'21:00'/'15 21:00'"""
+    conn = _connect()
+    cur = conn.execute(
+        "INSERT INTO reminders (user_id, content, rtype, datetime, lunar) VALUES (?, ?, ?, ?, ?)",
+        (user_id, content, rtype, dt, 1 if lunar else 0),
+    )
+    conn.commit()
+    rid = cur.lastrowid
+    conn.close()
+    return rid
+
+
+def list_reminders(user_id: int | None = None, include_done: bool = False) -> list[dict]:
+    """列出提醒"""
+    conn = _connect()
+    if user_id is not None:
+        rows = conn.execute(
+            "SELECT id, user_id, content, rtype, datetime, lunar, done, created_at "
+            "FROM reminders WHERE user_id=? " + ("" if include_done else "AND done=0 ") +
+            "ORDER BY datetime, id",
+            (user_id,),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, user_id, content, rtype, datetime, lunar, done, created_at "
+            "FROM reminders " + ("" if include_done else "WHERE done=0 ") +
+            "ORDER BY datetime, id"
+        ).fetchall()
+    conn.close()
+    return [
+        {"id": r[0], "user_id": r[1], "content": r[2], "rtype": r[3],
+         "datetime": r[4], "lunar": bool(r[5]), "done": bool(r[6]), "created_at": r[7]}
+        for r in rows
+    ]
+
+
+def delete_reminder(rid: int):
+    conn = _connect()
+    conn.execute("DELETE FROM reminders WHERE id=?", (rid,))
+    conn.commit()
+    conn.close()
+
+
+def mark_reminder_done(rid: int):
+    conn = _connect()
+    conn.execute("UPDATE reminders SET done=1 WHERE id=?", (rid,))
+    conn.commit()
+    conn.close()
+
+
+def get_due_reminders() -> list[dict]:
+    """获取到期的提醒（供后台线程调用）"""
+    import lunardate as _ld
+    from datetime import datetime as _dt
+
+    now = _dt.now()
+    today_solar = now.day
+    today_lunar = _ld.LunarDate.fromSolarDate(now.year, now.month, now.day).day
+    now_str = now.strftime("%H:%M")
+    today_str = now.strftime("%Y-%m-%d")
+
+    all_reminders = list_reminders(include_done=False)
+    due = []
+
+    for r in all_reminders:
+        dt = r["datetime"]
+        if r["rtype"] == "once" and dt <= _dt.now().strftime("%Y-%m-%d %H:%M"):
+            due.append(r)
+        elif r["rtype"] == "daily" and dt == now_str:
+            due.append(r)
+        elif r["rtype"] == "monthly":
+            parts = dt.split()
+            if len(parts) == 2:
+                day = int(parts[0])
+                tm = parts[1]
+                day_match = today_lunar if r["lunar"] else today_solar
+                if day == day_match and tm == now_str:
+                    due.append(r)
+
+    return due

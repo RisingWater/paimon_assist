@@ -34,6 +34,8 @@ _DEFAULT_RULES = (
     "11. 控制电视前先调 get_tv_state 查状态，再调 control_tv（开=退出音响模式，关=进入音响模式）。"
     "12. 回答涉及用户身份、偏好、房间归属时，先调 read_memory 查记忆。"
     "了解到新信息（如'王旭住主卧'）后调 save_memory 记录。"
+    "13. 用户要求定时提醒/定时任务时，用 add_reminder 添加。"
+    "查看/删除提醒用 list_reminders/delete_reminder。"
 )
 
 _SYSTEM = {"role": "system", "content": _DEFAULT_RULES}
@@ -134,7 +136,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             if tool_prefix:
                 # 纯信息查询类工具不播放提示语，避免突兀
-                silent_tools = {"read_memory", "save_memory", "list_ac", "get_tv_state"}
+                silent_tools = {"read_memory", "save_memory", "list_ac", "get_tv_state", "list_reminders", "add_reminder", "delete_reminder"}
                 should_play = all(
                     tc["function"]["name"] not in silent_tools
                     for tc in tool_calls

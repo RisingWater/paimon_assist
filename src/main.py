@@ -31,6 +31,7 @@ import vad
 import voiceprint
 from stt import stt
 import llm
+import reminder_thread
 
 
 def _start_webserver():
@@ -48,6 +49,7 @@ async def main():
     stt.load()
     voiceprint.load()
     tts.load()
+    reminder_thread.start()
 
     print(f"Threshold: {THRESHOLD}")
     print(f"Voiceprint threshold: {VOICEPRINT_THRESHOLD}")
@@ -108,6 +110,7 @@ if __name__ == "__main__":
         from server import app
 
         print("Web-only mode: http://localhost:8160")
+        reminder_thread.start()
         uvicorn.run(app, host="0.0.0.0", port=8160, log_level="info")
     else:
         try:
