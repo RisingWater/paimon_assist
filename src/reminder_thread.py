@@ -19,23 +19,37 @@ def _check_and_notify():
     uid = db._ensure_reminder_user()
     for r in due:
         _log.info("Reminder triggered: #%d %s", r["id"], r["content"])
-        try:
-            reply = llm.chat(
-                f"[定时任务] 现在到了执行以下任务的时间：{r['content']}。请执行这个任务，如果需要用到工具就直接调用，完成后告知结果。",
-                user_id=uid,
-                speaker="定时任务",
-            )
-            _log.info("Reminder LLM reply: %s", reply[:100] if reply else "(empty)")
-            if reply and "失败" not in reply:
-                try:
-                    from vits_tts import tts as _tts
-                    _tts.speak_sync(reply)
-                except Exception:
-                    pass
+
+        # 最多重试 3 次（间隔 10s）
+        reply = None
+        for attempt in range(3):
+            try:
+                reply = llm.chat(
+                    f"[定时任务] 现在到了执行以下任务的时间：{r['content']}。请执行这个任务，如果需要用到工具就直接调用，完成后告知结果。",
+                    user_id=uid,
+                    speaker="定时任务",
+                )
+                break
+            except Exception as e:
+                _log.warning("Reminder #%d attempt %d/3 failed: %s", r["id"], attempt + 1, e)
+                if attempt < 2:
+                    time.sleep(10)
+
+        if reply is None:
+            _log.error("Reminder #%d FAILED after 3 retries", r["id"])
             if r["rtype"] == "once":
                 db.mark_reminder_done(r["id"])
-        except Exception as e:
-            _log.error("Reminder #%d failed: %s", r["id"], e)
+            continue
+
+        _log.info("Reminder LLM reply: %s", reply[:100] if reply else "(empty)")
+        if reply and "失败" not in reply:
+            try:
+                from vits_tts import tts as _tts
+                _tts.speak_sync(reply)
+            except Exception:
+                pass
+        if r["rtype"] == "once":
+            db.mark_reminder_done(r["id"])
 
 
 def _loop():
