@@ -54,3 +54,4 @@ import llm_tools.home_assistant_ac # noqa: E402,F401
 import llm_tools.memory           # noqa: E402,F401
 import llm_tools.home_tv          # noqa: E402,F401
 import llm_tools.reminder         # noqa: E402,F401
+import llm_tools.volume           # noqa: E402,F401

@@ -21,3 +21,4 @@ onnxruntime
 Pillow
 simplejson
 sortedcontainers
+lunardate
