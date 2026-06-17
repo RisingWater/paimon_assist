@@ -176,18 +176,7 @@ class VitsTTS:
             self._play(self.synthesize(merged[0]))
             return
 
-        # 生产者-消费者：合成一句 → 入队 → 回调播放
-        audio_queue: queue.Queue = queue.Queue()
-        synth_done = threading.Event()
-
-        def _producer():
-            for i, s in enumerate(merged):
-                audio_queue.put((s, self.synthesize(s)))
-            synth_done.set()
-
-        threading.Thread(target=_producer, daemon=True).start()
-
-        audio_queue: queue.Queue = queue.Queue()
+        audio_queue = queue.Queue()
         synth_done = threading.Event()
         sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
 
@@ -203,7 +192,7 @@ class VitsTTS:
 
         threading.Thread(target=_producer, daemon=True).start()
 
-        current_chunk: bytes | None = None
+        current_chunk = audio_queue.get()
         offset = 0
 
         def _callback(in_data, frame_count, time_info, status):
