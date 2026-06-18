@@ -205,7 +205,7 @@ class VitsTTS:
                     if synth_done.is_set() and audio_queue.empty():
                         break
                     try:
-                        current_chunk = audio_queue.get(timeout=0.01)
+                        current_chunk = audio_queue.get_nowait()
                         offset = 0
                     except queue.Empty:
                         break
