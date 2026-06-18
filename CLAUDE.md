@@ -39,7 +39,7 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `src/tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
 | `src/vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
-| `frontend/` | React + Vite + antd 前端（4 tabs） | bun run dev / bun run build |
+| `frontend/` | React + Vite + antd 前端（6 tabs） | bun run dev / bun run build |
 
 ## 运行方式
 
@@ -51,10 +51,13 @@ python src/main.py
 python src/main.py --web-only
 ```
 
-Web 界面 `localhost:8160` — 三个栏目：
+Web 界面 `localhost:8160` — 六个栏目：
 - **用户管理** — 创建、重命名、删除用户
-- **声纹管理** — 浏览器录音 / 上传 WAV + 试听 + 声纹检测（逐条相似度）
+- **声纹管理** — 浏览器录音 / 上传 WAV + 试听 + 声纹检测（逐条相似度）+ 拖拽移动
 - **聊天历史** — 按用户查看/编辑/删除 LLM 对话，内置直接提问框（绕过唤醒/STT）
+- **定时提醒** — 添加/查看/删除提醒
+- **记忆管理** — 编辑长期记忆和各个用户的中期记忆
+- **工具配置** — 开关控制每个 tool 是否播放 TTS 提示语
 
 ## 数据库
 
