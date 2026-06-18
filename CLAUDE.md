@@ -20,7 +20,8 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
 | `src/wakeword.py` | 唤醒词检测 | `create_listener()` |
 | `src/vits_tts.py` | VITS 本地合成（Paimon 音色，22050Hz），内置缓存 | `synthesize(text)`, `speak(text)`, `wake_ack()`, `speak_sync(text)` |
-| `src/vad.py` | VAD 录音，silero-vad，静音自动停止 | `record(counter) -> filename` |
+| `src/audio_manager.py` | 统一音频管理（播放队列 + 录音），其他模块不直接操作 pyaudio | `init()`, `play_async()`, `play_sync()`, `record()` |
+| `src/vad.py` | VAD 录音，委托给 AudioManager | `record(counter) -> filename` |
 | `src/voiceprint.py` | 声纹提取 + 多声纹平均匹配 | `verify(wav_path) -> (user_id, info)` |
 | `src/db.py` | 用户表 + 声纹表 + 聊天历史（SQLite） | `create_user()`, `enroll()`, `find_best()`, `load_history()` |
 | `src/stt.py` | 语音转文字（SenseVoiceSmall） | `load()`, `transcribe(wav_path) -> str` |
