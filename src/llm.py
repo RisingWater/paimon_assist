@@ -3,6 +3,7 @@ import json
 import logging
 from datetime import datetime
 import requests
+import threading
 from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL, DEFAULT_CITY
 import db
 import llm_tools
@@ -82,6 +83,68 @@ def _get_history(user_id: int) -> list[dict]:
                 pass
         messages.append({"role": r["role"], "content": content})
     return messages
+
+
+def _extract_midterm(user_id: int, history: list[dict]):
+    """后台分析对话历史，提取有价值的记忆到中期记忆文件"""
+    import llm_tools.memory as _mem
+    from llm_tools import get_memory_value
+
+    # 收集有价值的交互
+    valuable = []
+    for i, msg in enumerate(history):
+        role = msg.get("role", "")
+        if role == "user":
+            # 用户说的话：取前后5条消息作为上下文判断价值
+            ctx = []
+            for j in range(max(0, i-2), min(len(history), i+3)):
+                ctx.append(f"[{history[j].get('role','')}] {str(history[j].get('content',''))[:200]}")
+            valuable.append("\n".join(ctx))
+        elif role == "tool":
+            # 检查 tool 的记忆价值
+            content = msg.get("content", "")
+            try:
+                data = json.loads(content)
+                tool_name = "unknown"
+                if "tool_call_id" in data:
+                    # tool result: find matching tool call
+                    pass
+            except:
+                pass
+
+    if not valuable:
+        return
+
+    # 交给 LLM 提取事实
+    prompt = (
+        "从以下对话中提取2条以内有价值的事实，每条一行，以'- '开头。"
+        "过滤掉操作类信息（开关空调/电视/调节音量），只保留关于用户偏好、身份、习惯、"
+        "重要事件的信息。没有价值就回复'无'。\n\n" + "\n---\n".join(valuable[-3:])
+    )
+
+    try:
+        resp = requests.post(
+            DEEPSEEK_URL,
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": [
+                    {"role": "system", "content": "你是记忆提取助手。只输出有价值的事实，格式'- xxx'。没有就回复'无'。"},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 100,
+                "temperature": 0.3,
+            },
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            reply = resp.json()["choices"][0]["message"]["content"].strip()
+            for line in reply.split("\n"):
+                line = line.strip()
+                if line.startswith("- ") and len(line) > 3:
+                    _mem.append_to_midterm(user_id, line[2:])
+    except Exception:
+        pass
 
 
 def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
@@ -188,6 +251,14 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
             history.append({"role": "assistant", "content": reply})
             if user_id:
                 db.append_message(user_id, "assistant", reply)
+
+        # 后台提取中期记忆（过滤有价值交互 → LLM 提取事实）
+        if user_id:
+            threading.Thread(
+                target=_extract_midterm, args=(user_id, history),
+                daemon=True,
+            ).start()
+
         return reply or "（无回复）"
     except Exception as e:
         _log.error("LLM chat error: %s", e)
