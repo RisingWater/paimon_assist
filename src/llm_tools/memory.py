@@ -143,3 +143,111 @@ def save_memory(args: dict) -> str:
         return f"已记住：{fact}"
     except Exception as e:
         return f"保存记忆失败：{e}"
+
+
+# ============================================================
+# 中期记忆：按用户分文件 + 摘要
+# ============================================================
+
+_MIDTERM_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "memory"))
+
+# user_id → 摘要缓存
+_midterm_cache: dict[int, str] = {}
+
+
+def _midterm_file(user_id: int) -> str:
+    os.makedirs(_MIDTERM_DIR, exist_ok=True)
+    return os.path.join(_MIDTERM_DIR, f"{user_id}.md")
+
+
+def _read_midterm_raw(user_id: int) -> str:
+    path = _midterm_file(user_id)
+    if not os.path.exists(path):
+        return ""
+    with open(path, encoding="utf-8") as f:
+        return f.read().strip()
+
+
+def get_midterm_summary(user_id: int) -> str:
+    """获取用户的中期记忆摘要（200字以内）"""
+    if user_id in _midterm_cache:
+        return _midterm_cache[user_id]
+    content = _read_midterm_raw(user_id)
+    if not content:
+        return ""
+    # 从文件中提取摘要行（以 "> 摘要：" 开头）
+    for line in content.split("\n"):
+        if line.startswith("> 摘要："):
+            summary = line[4:].strip()
+            _midterm_cache[user_id] = summary
+            return summary
+    return ""
+
+
+def append_to_midterm(user_id: int, fact: str):
+    """向中期记忆追加一条事实，并后台重建摘要"""
+    path = _midterm_file(user_id)
+    # 去重
+    existing = _read_midterm_raw(user_id)
+    if fact in existing:
+        return
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(f"- {fact}\n")
+    threading.Thread(target=_rebuild_midterm_summary, args=(user_id,), daemon=True).start()
+
+
+def _rebuild_midterm_summary(user_id: int):
+    """后台调用 LLM 重建中期记忆摘要"""
+    path = _midterm_file(user_id)
+    content = _read_midterm_raw(user_id)
+    facts = [l.strip() for l in content.split("\n") if l.strip().startswith("- ")]
+    if not facts:
+        _midterm_cache[user_id] = ""
+        return
+
+    try:
+        from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
+        import requests
+
+        prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键信息：\n" + "\n".join(facts)
+        resp = requests.post(
+            DEEPSEEK_URL,
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": [
+                    {"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 100,
+                "temperature": 0.3,
+            },
+            timeout=15,
+        )
+        summary = ""
+        if resp.status_code == 200:
+            summary = resp.json()["choices"][0]["message"]["content"].strip()
+            if len(summary) > 200:
+                summary = summary[:197] + "…"
+
+        # 写回文件头部
+        lines = content.split("\n")
+        new_lines = [f"> 摘要：{summary}"] if summary else []
+        new_lines.append("")
+        in_body = False
+        for l in lines:
+            if l.startswith("- "):
+                in_body = True
+            if in_body:
+                new_lines.append(l)
+
+        with open(path, "w", encoding="utf-8") as f:
+            f.write("\n".join(new_lines) + "\n")
+
+        _midterm_cache[user_id] = summary
+    except Exception:
+        # fallback: 简单截断
+        summary = "。".join(f[2:] for f in facts)
+        if len(summary) > 200:
+            summary = summary[:197] + "…"
+        _midterm_cache[user_id] = summary

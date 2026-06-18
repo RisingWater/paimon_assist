@@ -40,27 +40,38 @@ def _build_system() -> dict:
     """构建带当前时间和记忆摘要的 system prompt"""
     now = datetime.now().strftime("现在是%Y年%m月%d日 %A %H:%M。")
     content = now + _DEFAULT_RULES_PREFIX
-    # 附加记忆摘要
+    # 附加长期记忆摘要
     from llm_tools.memory import memory_summary
     if memory_summary:
-        content += f"\n[已知信息] {memory_summary}"
+        content += f"\n[家庭信息] {memory_summary}"
     return {"role": "system", "content": content}
 
 
 def _get_history(user_id: int) -> list[dict]:
-    """从 DB 加载对话历史，始终使用最新的 system prompt（含当前时间）"""
+    """从 DB 加载 5 分钟内的对话历史，超出部分交给中期记忆"""
     system = _build_system()
     rows = db.load_history(user_id)
     if not rows:
         db.append_message(user_id, "system", system["content"])
         return [system]
 
+    # 只取最近 5 分钟的消息
+    from datetime import datetime as _dt, timedelta as _td
+    cutoff = (_dt.now() - _td(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+    rows = [r for r in rows if r.get("created_at", "") >= cutoff]
+
     messages = [system]
+
+    # 附加中期记忆摘要
+    from llm_tools.memory import get_midterm_summary
+    mid = get_midterm_summary(user_id)
+    if mid:
+        messages.append({"role": "system", "content": f"[近期回顾] {mid}"})
+
     for r in rows:
         if r["role"] == "system":
             continue
         content = r["content"]
-        # 还原结构化消息（tool_calls / tool_call_id 等字段在 DB 中以 JSON 存储）
         if content.startswith("{") and content.endswith("}"):
             try:
                 parsed = json.loads(content)

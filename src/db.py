@@ -307,11 +307,11 @@ def load_history(user_id: int) -> "list[dict]":
     """加载用户的聊天历史，返回 [{"role": ..., "content": ...}, ...]"""
     conn = _connect()
     rows = conn.execute(
-        "SELECT id, role, content FROM chat_history WHERE user_id=? ORDER BY id",
+        "SELECT id, role, content, created_at FROM chat_history WHERE user_id=? ORDER BY id",
         (user_id,),
     ).fetchall()
     conn.close()
-    return [{"id": r[0], "role": r[1], "content": r[2]} for r in rows]
+    return [{"id": r[0], "role": r[1], "content": r[2], "created_at": r[3]} for r in rows]
 
 
 def append_message(user_id: int, role: str, content: str):
