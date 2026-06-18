@@ -34,6 +34,7 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/memory.py` | 长期记忆读写（memory.md） | `read_memory`, `save_memory` |
 | `src/llm_tools/reminder.py` | 定时提醒（一次性/每天/每月/农历） | `add_reminder`, `list_reminders`, `delete_reminder` |
 | `src/llm_tools/volume.py` | PulseAudio 音量控制 | `get_volume`, `set_volume` |
+| `src/llm_tools/ask_user.py` | 反问用户收集信息 | `ask_question_to_user` |
 | `src/reminder_thread.py` | 定时提醒后台线程（每分钟检查） | `start()` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
 | `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
@@ -105,6 +106,7 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `delete_reminder` | 删除指定提醒 |
 | `get_volume` | 查询当前扬声器音量百分比 |
 | `set_volume` | 设置扬声器音量（0-200%） |
+| `ask_question_to_user` | 信息不足时反问用户（TTS提问+录音+STT） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 每个工具标注 `memory_value`（0-10）：0=无记忆价值（开关/查询），5-8=中高价值（定位/搜索），10=极高（save_memory）。
