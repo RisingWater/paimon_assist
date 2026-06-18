@@ -101,7 +101,7 @@ def _get_address(session: requests.Session, device: dict) -> str | None:
     return addr_data["data"][0]
 
 
-@register(
+@register(memory_value=8,
     name="get_yuqiao_location",
     description="查询煜乔的当前位置。返回设备名称、电量和详细地址。",
     parameters={
@@ -152,7 +152,7 @@ def _get_yuqiao_device() -> dict | None:
     return yuqiao[0] if yuqiao else None
 
 
-@register(
+@register(memory_value=5,
     name="get_yuqiao_power",
     description="查询煜乔的通话器剩余电量，返回电量百分比。",
     parameters={

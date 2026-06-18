@@ -6,7 +6,7 @@ import db
 _log = logging.getLogger(__name__)
 
 
-@register(
+@register(memory_value=5,
     name="add_reminder",
     description=(
         "添加一个定时提醒或定时任务。支持一次性、每天、每月（公历/农历）。"
@@ -42,7 +42,7 @@ def add_reminder(args: dict) -> str:
         return f"添加提醒失败：{e}"
 
 
-@register(
+@register(memory_value=1,
     name="list_reminders",
     description="列出所有未完成的定时提醒。",
     parameters={"type": "object", "properties": {}, "required": []},
@@ -65,7 +65,7 @@ def list_reminders(_args: dict = {}) -> str:
         return f"查询失败：{e}"
 
 
-@register(
+@register(memory_value=1,
     name="delete_reminder",
     description="删除一个定时提醒。",
     parameters={

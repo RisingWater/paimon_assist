@@ -8,7 +8,7 @@ from config import CLAUDE_BIN
 _log = logging.getLogger(__name__)
 
 
-@register(
+@register(memory_value=8,
     name="web_search",
     description=(
         "仅用于查询最新时效性信息：新闻、实时数据、近期事件。"

@@ -10,8 +10,14 @@ def register(
     name: str,
     description: str,
     parameters: dict,
+    memory_value: int = 0,
 ):
-    """装饰器：注册一个 tool。被装饰函数签名为 (arguments: dict) -> str"""
+    """装饰器：注册一个 tool。
+
+    Args:
+        memory_value: 0=无记忆价值(开关/查询), 1-3=低(提醒CRUD),
+                      4-6=中(天气/定位), 7-10=高(搜索/记忆)
+    """
 
     def decorator(fn: Callable[[dict], str]):
         _registry[name] = {
@@ -24,10 +30,17 @@ def register(
                 },
             },
             "handler": fn,
+            "memory_value": memory_value,
         }
         return fn
 
     return decorator
+
+
+def get_memory_value(name: str) -> int:
+    """返回工具的长期记忆价值（0-10）"""
+    t = _registry.get(name)
+    return t["memory_value"] if t else 0
 
 
 def get_schemas() -> list[dict]:

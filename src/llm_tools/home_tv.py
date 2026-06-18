@@ -59,7 +59,7 @@ def _is_audio_mode() -> bool | None:
     return None
 
 
-@register(
+@register(memory_value=0,
     name="get_tv_state",
     description="查询电视当前状态（打开/音响模式/关闭）。",
     parameters={"type": "object", "properties": {}, "required": []},
@@ -77,7 +77,7 @@ def get_tv_state(_args: dict = {}) -> str:
         return f"查询失败：{e}"
 
 
-@register(
+@register(memory_value=0,
     name="control_tv",
     description=(
         "控制小米电视。开=退出音响模式，关=进入音响模式。"

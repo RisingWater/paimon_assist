@@ -105,6 +105,7 @@ def _summarize_day(day: dict) -> str:
 @register(
     name="get_weather",
     description="查询指定城市今天或明天的天气。返回温度范围、天气状况、降水时段。",
+    memory_value=0,
     parameters={
         "type": "object",
         "properties": {
