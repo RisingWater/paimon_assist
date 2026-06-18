@@ -25,7 +25,7 @@ ort.InferenceSession.__init__ = _patched_init
 import logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)-8s %(name)s %(message)s",
+    format="%(asctime)s.%(msecs)03d %(levelname)-8s %(name)s %(message)s",
     datefmt="%H:%M:%S",
 )
 
