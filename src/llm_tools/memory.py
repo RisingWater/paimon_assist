@@ -232,7 +232,7 @@ def append_to_midterm(user_id: int, fact: str):
 
 
 def _rebuild_midterm_simple(user_id: int):
-    """简单截断摘要（自动提取时用，不调 LLM）"""
+    """简单截断摘要（自动提取时用，不调 LLM），写回文件"""
     content = _read_midterm_raw(user_id)
     facts = [l.strip()[2:] for l in content.split("\n") if l.strip().startswith("- ")]
     if not facts:
@@ -241,6 +241,16 @@ def _rebuild_midterm_simple(user_id: int):
     summary = "。".join(facts[-10:])
     if len(summary) > 200:
         summary = summary[:197] + "…"
+
+    # 写回文件头部
+    path = _midterm_file(user_id)
+    new = [f"> 摘要：{summary}", ""]
+    for l in content.split("\n"):
+        if l.startswith("> 摘要") or (not new[-1] and l.strip() == ""):
+            continue
+        new.append(l)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(new).strip() + "\n")
     _midterm_cache[user_id] = summary
 
 
@@ -300,16 +310,21 @@ _midterm_check_running = False
 
 
 def _midterm_periodic_check():
-    """每 5 分钟检查：如果中期记忆文件有变化，用 LLM 重建摘要"""
+    """每 5 分钟检查：扫描 memory/ 目录，对变化的中期记忆文件用 LLM 重建摘要"""
     global _midterm_check_running, _midterm_mtimes
     import time as _time
+    import re as _re
     while True:
         _time.sleep(300)
         try:
-            for user_id in list(_midterm_mtimes.keys()):
-                path = _midterm_file(user_id)
-                if not os.path.isfile(path):
+            if not os.path.isdir(_MIDTERM_DIR):
+                continue
+            for fname in os.listdir(_MIDTERM_DIR):
+                m = _re.match(r"^(\d+)\.md$", fname)
+                if not m:
                     continue
+                user_id = int(m.group(1))
+                path = os.path.join(_MIDTERM_DIR, fname)
                 mtime = os.path.getmtime(path)
                 if mtime > _midterm_mtimes.get(user_id, 0):
                     _midterm_mtimes[user_id] = mtime

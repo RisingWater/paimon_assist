@@ -25,7 +25,7 @@ ort.InferenceSession.__init__ = _patched_init
 import logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s %(levelname)-8s %(name)s %(message)s",
+    format="%(asctime)s.%(msecs)03d %(levelname)-8s %(name)s %(message)s",
     datefmt="%H:%M:%S",
 )
 
@@ -42,6 +42,7 @@ import vad
 import voiceprint
 from stt import stt
 import llm
+import audio_manager
 import reminder_thread
 
 
@@ -60,6 +61,7 @@ async def main():
     stt.load()
     voiceprint.load()
     tts.load()
+    audio_manager.init()
     reminder_thread.start()
 
     _log.info("Threshold=%.2f Voiceprint=%.2f", THRESHOLD, VOICEPRINT_THRESHOLD)

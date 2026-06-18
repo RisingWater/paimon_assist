@@ -20,7 +20,8 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
 | `src/wakeword.py` | 唤醒词检测 | `create_listener()` |
 | `src/vits_tts.py` | VITS 本地合成（Paimon 音色，22050Hz），内置缓存 | `synthesize(text)`, `speak(text)`, `wake_ack()`, `speak_sync(text)` |
-| `src/vad.py` | VAD 录音，silero-vad，静音自动停止 | `record(counter) -> filename` |
+| `src/audio_manager.py` | 统一音频管理（播放队列 + 录音），其他模块不直接操作 pyaudio | `init()`, `play_async()`, `play_sync()`, `record()` |
+| `src/vad.py` | VAD 录音，委托给 AudioManager | `record(counter) -> filename` |
 | `src/voiceprint.py` | 声纹提取 + 多声纹平均匹配 | `verify(wav_path) -> (user_id, info)` |
 | `src/db.py` | 用户表 + 声纹表 + 聊天历史（SQLite） | `create_user()`, `enroll()`, `find_best()`, `load_history()` |
 | `src/stt.py` | 语音转文字（SenseVoiceSmall） | `load()`, `transcribe(wav_path) -> str` |
@@ -34,12 +35,13 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/memory.py` | 长期记忆读写（memory.md） | `read_memory`, `save_memory` |
 | `src/llm_tools/reminder.py` | 定时提醒（一次性/每天/每月/农历） | `add_reminder`, `list_reminders`, `delete_reminder` |
 | `src/llm_tools/volume.py` | PulseAudio 音量控制 | `get_volume`, `set_volume` |
+| `src/llm_tools/ask_user.py` | 反问用户收集信息 | `ask_question_to_user` |
 | `src/reminder_thread.py` | 定时提醒后台线程（每分钟检查） | `start()` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
 | `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `src/tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
 | `src/vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
-| `frontend/` | React + Vite + antd 前端（4 tabs） | bun run dev / bun run build |
+| `frontend/` | React + Vite + antd 前端（6 tabs） | bun run dev / bun run build |
 
 ## 运行方式
 
@@ -51,10 +53,13 @@ python src/main.py
 python src/main.py --web-only
 ```
 
-Web 界面 `localhost:8160` — 三个栏目：
+Web 界面 `localhost:8160` — 六个栏目：
 - **用户管理** — 创建、重命名、删除用户
-- **声纹管理** — 浏览器录音 / 上传 WAV + 试听 + 声纹检测（逐条相似度）
+- **声纹管理** — 浏览器录音 / 上传 WAV + 试听 + 声纹检测（逐条相似度）+ 拖拽移动
 - **聊天历史** — 按用户查看/编辑/删除 LLM 对话，内置直接提问框（绕过唤醒/STT）
+- **定时提醒** — 添加/查看/删除提醒
+- **记忆管理** — 编辑长期记忆和各个用户的中期记忆
+- **工具配置** — 开关控制每个 tool 是否播放 TTS 提示语
 
 ## 数据库
 
@@ -102,6 +107,7 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `delete_reminder` | 删除指定提醒 |
 | `get_volume` | 查询当前扬声器音量百分比 |
 | `set_volume` | 设置扬声器音量（0-200%） |
+| `ask_question_to_user` | 信息不足时反问用户（TTS提问+录音+STT） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
 每个工具标注 `memory_value`（0-10）：0=无记忆价值（开关/查询），5-8=中高价值（定位/搜索），10=极高（save_memory）。

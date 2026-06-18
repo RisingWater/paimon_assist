@@ -25,6 +25,7 @@ from vits.text import text_to_sequence
 from vits.text.symbols import symbols
 
 from tts_cache import TTSCache
+import audio_manager
 
 
 def _load_config(config_path: str) -> dict:
@@ -144,24 +145,23 @@ class VitsTTS:
     # ---- 播放 ----
 
     def speak(self, text: str):
-        """合成并播放（后台线程，不阻塞）"""
+        """合成并播放（异步，入队即返回）"""
         def _run():
             audio = self.synthesize(text)
-            self._play(audio)
+            audio_manager.init()
+            audio_manager.get().play_async(audio)
         threading.Thread(target=_run, daemon=True).start()
 
     def speak_sync(self, text: str):
-        """合成并播放（阻塞直到播放完成）
+        """合成并播放（阻塞直到最后一句播放完成）
 
-        长文本按句拆分，TTS 合成一句就入队播放，后台继续合下一句。
-        首句延迟大幅降低。
+        长文本按句拆分，除最后一句外异步入队，最后一句同步等待。
         """
         sentences = re.split(r"(?<=[。！？；\n])", text)
         sentences = [s.strip() for s in sentences if s.strip()]
         if not sentences:
             return
 
-        # 合并短句（< 5 字并到下一句）
         merged = []
         i = 0
         while i < len(sentences):
@@ -173,87 +173,21 @@ class VitsTTS:
             i += 1
 
         if len(merged) == 1:
-            self._play(self.synthesize(merged[0]))
+            audio_manager.get().play_sync(self.synthesize(merged[0]))
             return
 
-        audio_queue = queue.Queue()
-        synth_done = threading.Event()
-        sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
-
-        # 第一句提前合成入队，消除首句延迟
-        _log.info("[TTS 1/%d start] %s", len(merged), merged[0])
-        audio_queue.put(self.synthesize(merged[0]).tobytes())
-
-        def _producer():
-            for i, s in enumerate(merged[1:], 1):
-                _log.info("[TTS %d/%d start] %s", i + 1, len(merged), s)
-                audio_queue.put(self.synthesize(s).tobytes())
-            synth_done.set()
-
-        threading.Thread(target=_producer, daemon=True).start()
-
-        current_chunk = audio_queue.get()
-        offset = 0
-
-        def _callback(in_data, frame_count, time_info, status):
-            nonlocal current_chunk, offset
-            needed = frame_count * 4
-            buf = bytearray()
-
-            while len(buf) < needed:
-                if current_chunk is None:
-                    if synth_done.is_set() and audio_queue.empty():
-                        break
-                    try:
-                        current_chunk = audio_queue.get(timeout=0.01)
-                        offset = 0
-                    except queue.Empty:
-                        break
-
-                remaining = len(current_chunk) - offset
-                take = min(remaining, needed - len(buf))
-                buf.extend(current_chunk[offset:offset + take])
-                offset += take
-                if offset >= len(current_chunk):
-                    current_chunk = None
-
-            if len(buf) == 0 and synth_done.is_set():
-                return (b"\x00" * needed, pyaudio.paComplete)
-            elif len(buf) < needed:
-                buf.extend(b"\x00" * (needed - len(buf)))
-                return (bytes(buf), pyaudio.paContinue)
-            else:
-                return (bytes(buf), pyaudio.paContinue)
-
-        pa = pyaudio.PyAudio()
-        stream = pa.open(
-            format=pyaudio.paFloat32, channels=1, rate=sr,
-            output=True, output_device_index=self.play_device,
-            stream_callback=_callback,
-        )
-        stream.start_stream()
-        while stream.is_active():
-            import time as _time
-            _time.sleep(0.05)
-        stream.stop_stream()
-        stream.close()
-        pa.terminate()
+        mgr = audio_manager.get()
+        for i, s in enumerate(merged[:-1]):
+            _log.info("[TTS %d/%d start] %s", i + 1, len(merged), s)
+            mgr.play_async(self.synthesize(s))
+        last = merged[-1]
+        _log.info("[TTS %d/%d start] %s", len(merged), len(merged), last)
+        mgr.play_sync(self.synthesize(last))
 
     def _play(self, audio: np.ndarray):
-        """通过 PyAudio 播放音频"""
-        sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
-        pa = pyaudio.PyAudio()
-        stream = pa.open(
-            format=pyaudio.paFloat32,
-            channels=1,
-            rate=sr,
-            output=True,
-            output_device_index=self.play_device,
-        )
-        stream.write(audio.tobytes())
-        stream.stop_stream()
-        stream.close()
-        pa.terminate()
+        """通过音频管理器播放（同步：阻塞到播完）"""
+        audio_manager.init()
+        audio_manager.get().play_sync(audio)
 
     def wake_ack(self):
         """唤醒应答（非阻塞）"""
