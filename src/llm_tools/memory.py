@@ -4,6 +4,31 @@ from llm_tools import register
 
 _MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "memory.md"))
 
+# 记忆摘要（200字以内），贴到 system prompt 尾部供 LLM 快速参考
+memory_summary = ""
+
+
+def _rebuild_summary():
+    """从 memory.md 重新生成摘要（200字以内）"""
+    global memory_summary
+    try:
+        if not os.path.exists(_MEMORY_FILE):
+            memory_summary = ""
+            return
+        with open(_MEMORY_FILE, encoding="utf-8") as f:
+            lines = [l.strip() for l in f if l.strip().startswith("- ")]
+        # 去重缩写：合并同类事实 -> 紧凑段落
+        summary = "。".join(l[2:] for l in lines)
+        if len(summary) > 200:
+            summary = summary[:197] + "…"
+        memory_summary = summary
+    except Exception:
+        memory_summary = ""
+
+
+# 启动时构建摘要
+_rebuild_summary()
+
 
 @register(
     name="read_memory",
@@ -59,6 +84,7 @@ def save_memory(args: dict) -> str:
     try:
         with open(_MEMORY_FILE, "a", encoding="utf-8") as f:
             f.write(f"- {fact}\n")
+        _rebuild_summary()
         return f"已记住：{fact}"
     except Exception as e:
         return f"保存记忆失败：{e}"

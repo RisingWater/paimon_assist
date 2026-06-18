@@ -37,9 +37,14 @@ _DEFAULT_RULES_PREFIX = (
 )
 
 def _build_system() -> dict:
-    """构建带当前时间的 system prompt"""
+    """构建带当前时间和记忆摘要的 system prompt"""
     now = datetime.now().strftime("现在是%Y年%m月%d日 %A %H:%M。")
-    return {"role": "system", "content": now + _DEFAULT_RULES_PREFIX}
+    content = now + _DEFAULT_RULES_PREFIX
+    # 附加记忆摘要
+    from llm_tools.memory import memory_summary
+    if memory_summary:
+        content += f"\n[已知信息] {memory_summary}"
+    return {"role": "system", "content": content}
 
 
 def _get_history(user_id: int) -> list[dict]:
