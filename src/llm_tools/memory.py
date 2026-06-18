@@ -1,15 +1,19 @@
 """长期记忆工具 — 读写 memory.md"""
+import logging
 import os
+import threading
 from llm_tools import register
 
+_log = logging.getLogger(__name__)
 _MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "memory.md"))
 
 # 记忆摘要（200字以内），贴到 system prompt 尾部供 LLM 快速参考
 memory_summary = ""
+_summary_dirty = False
 
 
-def _rebuild_summary():
-    """从 memory.md 重新生成摘要（200字以内）"""
+def _rebuild_summary_simple():
+    """简单截断摘要（LLM 不可用时的 fallback）"""
     global memory_summary
     try:
         if not os.path.exists(_MEMORY_FILE):
@@ -17,7 +21,6 @@ def _rebuild_summary():
             return
         with open(_MEMORY_FILE, encoding="utf-8") as f:
             lines = [l.strip() for l in f if l.strip().startswith("- ")]
-        # 去重缩写：合并同类事实 -> 紧凑段落
         summary = "。".join(l[2:] for l in lines)
         if len(summary) > 200:
             summary = summary[:197] + "…"
@@ -26,8 +29,60 @@ def _rebuild_summary():
         memory_summary = ""
 
 
-# 启动时构建摘要
-_rebuild_summary()
+def rebuild_summary_async():
+    """后台线程：调 LLM 重新生成 memory 摘要"""
+    global _summary_dirty, memory_summary
+    _summary_dirty = False
+
+    try:
+        if not os.path.exists(_MEMORY_FILE):
+            memory_summary = ""
+            return
+        with open(_MEMORY_FILE, encoding="utf-8") as f:
+            content = f.read().strip()
+        lines = [l for l in content.split("\n") if l.strip().startswith("- ")]
+        if not lines:
+            return
+
+        from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
+        import requests
+
+        prompt = (
+            "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键关系：\n"
+            + "\n".join(lines)
+        )
+        resp = requests.post(
+            DEEPSEEK_URL,
+            headers={
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": [
+                    {"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 100,
+                "temperature": 0.3,
+            },
+            timeout=15,
+        )
+        if resp.status_code == 200:
+            summary = resp.json()["choices"][0]["message"]["content"].strip()
+            if len(summary) > 200:
+                summary = summary[:197] + "…"
+            memory_summary = summary
+        else:
+            _log.warning("LLM 摘要生成失败: %d", resp.status_code)
+            _rebuild_summary_simple()
+    except Exception as e:
+        _log.warning("LLM 摘要异常: %s", e)
+        _rebuild_summary_simple()
+
+
+# 启动时简单构建摘要
+_rebuild_summary_simple()
 
 
 @register(
@@ -84,7 +139,7 @@ def save_memory(args: dict) -> str:
     try:
         with open(_MEMORY_FILE, "a", encoding="utf-8") as f:
             f.write(f"- {fact}\n")
-        _rebuild_summary()
+        threading.Thread(target=rebuild_summary_async, daemon=True).start()
         return f"已记住：{fact}"
     except Exception as e:
         return f"保存记忆失败：{e}"
