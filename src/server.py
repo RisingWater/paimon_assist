@@ -364,13 +364,12 @@ async def api_save_memory(name: str, req: dict):
             raise HTTPException(400, "无效的记忆名称")
         with open(path, "w", encoding="utf-8") as f:
             f.write(content)
-        # 重建摘要：先简单截断（立即可见），后台 LLM 替换（更精准）
+        # Web 编辑后立即用 LLM 重建摘要
         if name == "long":
-            _mem._rebuild_summary_simple()
-            import threading
-            threading.Thread(target=_mem.rebuild_summary_async, daemon=True).start()
+            _mem.rebuild_summary_async()  # 阻塞，等 LLM 完
         else:
-            _mem._rebuild_midterm_summary(int(name))
+            uid = int(name)
+            _mem.rebuild_midterm_llm(uid)  # 阻塞，等 LLM 完
         return {"ok": True}
     except HTTPException:
         raise

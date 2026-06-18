@@ -227,23 +227,63 @@ def append_to_midterm(user_id: int, fact: str):
         return
     with open(path, "a", encoding="utf-8") as f:
         f.write(f"- {fact}\n")
-    _rebuild_midterm_summary(user_id)
+    _rebuild_midterm_simple(user_id)
+    _midterm_mtimes[user_id] = os.path.getmtime(path)
 
 
-def _rebuild_midterm_summary(user_id: int):
-    """简单截断摘要，写回文件头部"""
+def _rebuild_midterm_simple(user_id: int):
+    """简单截断摘要（自动提取时用，不调 LLM）"""
+    content = _read_midterm_raw(user_id)
+    facts = [l.strip()[2:] for l in content.split("\n") if l.strip().startswith("- ")]
+    if not facts:
+        _midterm_cache[user_id] = ""
+        return
+    summary = "。".join(facts[-10:])
+    if len(summary) > 200:
+        summary = summary[:197] + "…"
+    _midterm_cache[user_id] = summary
+
+
+def rebuild_midterm_llm(user_id: int):
+    """用 LLM 重建中期记忆摘要，写回文件头部"""
+    global _midterm_cache
+    path = _midterm_file(user_id)
     content = _read_midterm_raw(user_id)
     facts = [l.strip()[2:] for l in content.split("\n") if l.strip().startswith("- ")]
     if not facts:
         _midterm_cache[user_id] = ""
         return
 
-    summary = "。".join(facts[-10:])  # 只取最近 10 条
-    if len(summary) > 200:
-        summary = summary[:197] + "…"
+    try:
+        from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
+        import requests
+        prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键信息：\n" + "\n".join(facts)
+        resp = requests.post(
+            DEEPSEEK_URL,
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+            json={
+                "model": DEEPSEEK_MODEL,
+                "messages": [
+                    {"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
+                    {"role": "user", "content": prompt},
+                ],
+                "max_tokens": 100, "temperature": 0.3,
+            },
+            timeout=15,
+        )
+        summary = ""
+        if resp.status_code == 200:
+            summary = resp.json()["choices"][0]["message"]["content"].strip()
+            if len(summary) > 200:
+                summary = summary[:197] + "…"
+    except Exception:
+        summary = ""
+
+    if not summary:
+        _rebuild_midterm_simple(user_id)
+        return
 
     # 写回文件头部
-    path = _midterm_file(user_id)
     new = [f"> 摘要：{summary}", ""]
     for l in content.split("\n"):
         if l.startswith("> 摘要") or (not new[-1] and l.strip() == ""):
@@ -252,3 +292,38 @@ def _rebuild_midterm_summary(user_id: int):
     with open(path, "w", encoding="utf-8") as f:
         f.write("\n".join(new).strip() + "\n")
     _midterm_cache[user_id] = summary
+
+
+# 中期记忆定期检查线程
+_midterm_mtimes: dict[int, float] = {}
+_midterm_check_running = False
+
+
+def _midterm_periodic_check():
+    """每 5 分钟检查：如果中期记忆文件有变化，用 LLM 重建摘要"""
+    global _midterm_check_running, _midterm_mtimes
+    import time as _time
+    while True:
+        _time.sleep(300)
+        try:
+            for user_id in list(_midterm_mtimes.keys()):
+                path = _midterm_file(user_id)
+                if not os.path.isfile(path):
+                    continue
+                mtime = os.path.getmtime(path)
+                if mtime > _midterm_mtimes.get(user_id, 0):
+                    _midterm_mtimes[user_id] = mtime
+                    rebuild_midterm_llm(user_id)
+        except Exception:
+            pass
+
+
+def _start_midterm_checker():
+    global _midterm_check_running
+    if _midterm_check_running:
+        return
+    _midterm_check_running = True
+    threading.Thread(target=_midterm_periodic_check, daemon=True).start()
+
+
+_start_midterm_checker()
