@@ -85,66 +85,20 @@ def _get_history(user_id: int) -> list[dict]:
     return messages
 
 
-def _extract_midterm(user_id: int, history: list[dict]):
-    """后台分析对话历史，提取有价值的记忆到中期记忆文件"""
-    import llm_tools.memory as _mem
+def _log_to_midterm(user_id: int, tool_calls_during_chat: list[str], user_text: str, reply: str):
+    """规则：如果本轮对话沾了 memory_value=0 的 tool，整轮不进中期记忆"""
     from llm_tools import get_memory_value
 
-    # 收集有价值的交互
-    valuable = []
-    for i, msg in enumerate(history):
-        role = msg.get("role", "")
-        if role == "user":
-            # 用户说的话：取前后5条消息作为上下文判断价值
-            ctx = []
-            for j in range(max(0, i-2), min(len(history), i+3)):
-                ctx.append(f"[{history[j].get('role','')}] {str(history[j].get('content',''))[:200]}")
-            valuable.append("\n".join(ctx))
-        elif role == "tool":
-            # 检查 tool 的记忆价值
-            content = msg.get("content", "")
-            try:
-                data = json.loads(content)
-                tool_name = "unknown"
-                if "tool_call_id" in data:
-                    # tool result: find matching tool call
-                    pass
-            except:
-                pass
-
-    if not valuable:
+    if user_id <= 0:
         return
+    for name in tool_calls_during_chat:
+        if get_memory_value(name) == 0:
+            return  # 有低价值 tool → 整轮丢弃
 
-    # 交给 LLM 提取事实
-    prompt = (
-        "从以下对话中提取2条以内有价值的事实，每条一行，以'- '开头。"
-        "过滤掉操作类信息（开关空调/电视/调节音量），只保留关于用户偏好、身份、习惯、"
-        "重要事件的信息。没有价值就回复'无'。\n\n" + "\n---\n".join(valuable[-3:])
-    )
-
-    try:
-        resp = requests.post(
-            DEEPSEEK_URL,
-            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": DEEPSEEK_MODEL,
-                "messages": [
-                    {"role": "system", "content": "你是记忆提取助手。只输出有价值的事实，格式'- xxx'。没有就回复'无'。"},
-                    {"role": "user", "content": prompt},
-                ],
-                "max_tokens": 100,
-                "temperature": 0.3,
-            },
-            timeout=15,
-        )
-        if resp.status_code == 200:
-            reply = resp.json()["choices"][0]["message"]["content"].strip()
-            for line in reply.split("\n"):
-                line = line.strip()
-                if line.startswith("- ") and len(line) > 3:
-                    _mem.append_to_midterm(user_id, line[2:])
-    except Exception:
-        pass
+    # 纯聊天或高价值 tool → 记入中期记忆
+    import llm_tools.memory as _mem
+    ts = datetime.now().strftime("%m-%d %H:%M")
+    _mem.append_to_midterm(user_id, f"[{ts}] 问：{user_text} | 答：{reply[:200]}")
 
 
 def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
@@ -192,6 +146,9 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         tools = llm_tools.get_schemas()
         tool_prefix = ""
 
+        # 记录本轮涉及的所有 tool 名称（用于判断记忆价值）
+        all_tool_names: list[str] = []
+
         # 多轮 tool call 循环：列表→控制这样的连续调用
         for _round in range(5):  # 最多 5 轮，防止死循环
             data = _call_api(history, tools)
@@ -233,6 +190,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
 
             for tc in tool_calls:
                 fn_name = tc["function"]["name"]
+                all_tool_names.append(fn_name)
                 fn_args = json.loads(tc["function"]["arguments"])
                 _log.info("Tool call: %s(%s)", fn_name, fn_args)
                 result = llm_tools.execute(fn_name, fn_args)
@@ -252,12 +210,9 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
             if user_id:
                 db.append_message(user_id, "assistant", reply)
 
-        # 后台提取中期记忆（过滤有价值交互 → LLM 提取事实）
+        # 简单规则记入中期记忆
         if user_id:
-            threading.Thread(
-                target=_extract_midterm, args=(user_id, history),
-                daemon=True,
-            ).start()
+            _log_to_midterm(user_id, all_tool_names, user_text, reply or "")
 
         return reply or "（无回复）"
     except Exception as e:

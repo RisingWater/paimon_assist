@@ -5,7 +5,7 @@ import threading
 from llm_tools import register
 
 _log = logging.getLogger(__name__)
-_MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "memory.md"))
+_MEMORY_FILE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "memory", "memory.md"))
 
 # 记忆摘要（200字以内），贴到 system prompt 尾部供 LLM 快速参考
 memory_summary = ""
@@ -193,61 +193,18 @@ def append_to_midterm(user_id: int, fact: str):
         return
     with open(path, "a", encoding="utf-8") as f:
         f.write(f"- {fact}\n")
-    threading.Thread(target=_rebuild_midterm_summary, args=(user_id,), daemon=True).start()
+    _rebuild_midterm_summary(user_id)
 
 
 def _rebuild_midterm_summary(user_id: int):
-    """后台调用 LLM 重建中期记忆摘要"""
-    path = _midterm_file(user_id)
+    """简单截断摘要（不调 LLM，省 token）"""
     content = _read_midterm_raw(user_id)
-    facts = [l.strip() for l in content.split("\n") if l.strip().startswith("- ")]
+    facts = [l.strip()[2:] for l in content.split("\n") if l.strip().startswith("- ")]
     if not facts:
         _midterm_cache[user_id] = ""
         return
 
-    try:
-        from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
-        import requests
-
-        prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键信息：\n" + "\n".join(facts)
-        resp = requests.post(
-            DEEPSEEK_URL,
-            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
-            json={
-                "model": DEEPSEEK_MODEL,
-                "messages": [
-                    {"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
-                    {"role": "user", "content": prompt},
-                ],
-                "max_tokens": 100,
-                "temperature": 0.3,
-            },
-            timeout=15,
-        )
-        summary = ""
-        if resp.status_code == 200:
-            summary = resp.json()["choices"][0]["message"]["content"].strip()
-            if len(summary) > 200:
-                summary = summary[:197] + "…"
-
-        # 写回文件头部
-        lines = content.split("\n")
-        new_lines = [f"> 摘要：{summary}"] if summary else []
-        new_lines.append("")
-        in_body = False
-        for l in lines:
-            if l.startswith("- "):
-                in_body = True
-            if in_body:
-                new_lines.append(l)
-
-        with open(path, "w", encoding="utf-8") as f:
-            f.write("\n".join(new_lines) + "\n")
-
-        _midterm_cache[user_id] = summary
-    except Exception:
-        # fallback: 简单截断
-        summary = "。".join(f[2:] for f in facts)
-        if len(summary) > 200:
-            summary = summary[:197] + "…"
-        _midterm_cache[user_id] = summary
+    summary = "。".join(facts[-10:])  # 只取最近 10 条
+    if len(summary) > 200:
+        summary = summary[:197] + "…"
+    _midterm_cache[user_id] = summary
