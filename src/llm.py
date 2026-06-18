@@ -1,6 +1,7 @@
 """LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite，支持 Tool Calling"""
 import json
 import logging
+import os
 from datetime import datetime
 import requests
 import threading
@@ -9,6 +10,16 @@ import db
 import llm_tools
 
 _log = logging.getLogger(__name__)
+
+_TOOL_CONFIG = os.path.join(os.path.dirname(__file__), "llm_tools", "tool_config.json")
+
+
+def _load_silent_tools() -> set[str]:
+    try:
+        with open(_TOOL_CONFIG, encoding="utf-8") as f:
+            return set(json.load(f).get("silent", []))
+    except Exception:
+        return set()
 
 _DEFAULT_RULES_PREFIX = (
     "你是派萌，一个可爱的AI助手。你的回答会通过语音播放给用户听。"
@@ -173,8 +184,8 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
             if user_id:
                 db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
             if tool_prefix:
-                # 纯信息查询类工具不播放提示语，避免突兀
-                silent_tools = {"read_memory", "save_memory", "list_ac", "get_tv_state", "list_reminders", "get_volume", "set_volume"}
+                # 从配置文件加载静默工具列表
+                silent_tools = _load_silent_tools()
                 should_play = all(
                     tc["function"]["name"] not in silent_tools
                     for tc in tool_calls

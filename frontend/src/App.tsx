@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react"
 import { Layout, Tabs, Typography, App } from "antd"
-import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined } from "@ant-design/icons"
+import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined } from "@ant-design/icons"
 import { api, type User } from "./api"
 import UserTab from "./components/UserTab"
 import VoiceprintTab from "./components/VoiceprintTab"
 import ChatTab from "./components/ChatTab"
 import ReminderTab from "./components/ReminderTab"
 import MemoryTab from "./components/MemoryTab"
+import ToolConfigTab from "./components/ToolConfigTab"
 
 const { Header, Content } = Layout
 
@@ -53,6 +54,11 @@ export default function Root() {
       key: "memory",
       label: <span><BookOutlined /> 记忆管理</span>,
       children: <MemoryTab users={users} />,
+    },
+    {
+      key: "tools",
+      label: <span><SettingOutlined /> 工具配置</span>,
+      children: <ToolConfigTab />,
     },
   ]
 

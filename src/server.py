@@ -377,6 +377,32 @@ async def api_save_memory(name: str, req: dict):
         raise HTTPException(500, str(e))
 
 
+# ---- 工具配置 ----
+
+import json as _json
+
+_TOOL_CONFIG = "src/llm_tools/tool_config.json"
+
+
+@app.get("/api/tool-config")
+async def api_get_tool_config():
+    from llm_tools import get_schemas
+    tools = [{"name": s["function"]["name"], "description": s["function"]["description"]} for s in get_schemas()]
+    silent = set()
+    if os.path.isfile(_TOOL_CONFIG):
+        with open(_TOOL_CONFIG, encoding="utf-8") as f:
+            silent = set(_json.load(f).get("silent", []))
+    return {"tools": tools, "silent": list(silent)}
+
+
+@app.put("/api/tool-config")
+async def api_save_tool_config(req: dict):
+    silent = req.get("silent", [])
+    with open(_TOOL_CONFIG, "w", encoding="utf-8") as f:
+        _json.dump({"silent": list(silent)}, f, ensure_ascii=False, indent=2)
+    return {"ok": True}
+
+
 # ---- SPA fallback（必须放在所有路由之后） ----
 @app.get("/{path:path}")
 async def spa_fallback(path: str):

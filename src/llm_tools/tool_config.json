@@ -1,0 +1,3 @@
+{
+  "silent": ["read_memory", "save_memory", "list_ac", "get_tv_state", "list_reminders", "get_volume", "set_volume"]
+}
