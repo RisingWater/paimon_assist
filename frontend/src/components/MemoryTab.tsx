@@ -11,6 +11,7 @@ export default function MemoryTab({ users }: Props) {
   const { message } = App.useApp()
   const [target, setTarget] = useState("long")
   const [content, setContent] = useState("")
+  const [summary, setSummary] = useState("")
   const [loading, setLoading] = useState(false)
 
   async function load() {
@@ -18,7 +19,11 @@ export default function MemoryTab({ users }: Props) {
     try {
       const res = await fetch(`/api/memory/${target}`)
       const data = await res.json()
-      setContent(data.content || "")
+      const raw = data.content || ""
+      setContent(raw)
+      // 提取摘要行预览
+      const m = raw.match(/^> 摘要[：:](.+)/m)
+      setSummary(m ? m[1] : "（暂无摘要）")
     } catch { message.error("加载失败") }
     finally { setLoading(false) }
   }
@@ -56,6 +61,9 @@ export default function MemoryTab({ users }: Props) {
         <Select value={target} onChange={setTarget} style={{ width: 280 }} options={options} />
         <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>保存</Button>
       </div>
+      <Typography.Paragraph type="secondary" style={{ marginBottom: 8, background: "#f6ffed", padding: "8px 12px", borderRadius: 6 }}>
+        当前摘要：{summary}
+      </Typography.Paragraph>
       <Spin spinning={loading}>
         <Input.TextArea
           value={content}
