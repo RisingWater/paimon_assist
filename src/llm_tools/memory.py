@@ -13,17 +13,27 @@ _summary_dirty = False
 
 
 def _rebuild_summary_simple():
-    """简单截断摘要（LLM 不可用时的 fallback）"""
+    """简单截断摘要，写回 memory.md 头部"""
     global memory_summary
     try:
         if not os.path.exists(_MEMORY_FILE):
             memory_summary = ""
             return
         with open(_MEMORY_FILE, encoding="utf-8") as f:
-            lines = [l.strip() for l in f if l.strip().startswith("- ")]
+            content = f.read()
+        lines = [l.strip() for l in content.split("\n") if l.strip().startswith("- ")]
         summary = "。".join(l[2:] for l in lines)
         if len(summary) > 200:
             summary = summary[:197] + "…"
+
+        # 写回文件：摘要行 + 空行 + 原内容（跳过旧摘要行和空行开头的）
+        new = [f"> 摘要：{summary}", ""]
+        for l in content.split("\n"):
+            if l.startswith("> 摘要") or (not new[-1] and l.strip() == ""):
+                continue
+            new.append(l)
+        with open(_MEMORY_FILE, "w", encoding="utf-8") as f:
+            f.write("\n".join(new).strip() + "\n")
         memory_summary = summary
     except Exception:
         memory_summary = ""
@@ -221,7 +231,7 @@ def append_to_midterm(user_id: int, fact: str):
 
 
 def _rebuild_midterm_summary(user_id: int):
-    """简单截断摘要（不调 LLM，省 token）"""
+    """简单截断摘要，写回文件头部"""
     content = _read_midterm_raw(user_id)
     facts = [l.strip()[2:] for l in content.split("\n") if l.strip().startswith("- ")]
     if not facts:
@@ -231,4 +241,14 @@ def _rebuild_midterm_summary(user_id: int):
     summary = "。".join(facts[-10:])  # 只取最近 10 条
     if len(summary) > 200:
         summary = summary[:197] + "…"
+
+    # 写回文件头部
+    path = _midterm_file(user_id)
+    new = [f"> 摘要：{summary}", ""]
+    for l in content.split("\n"):
+        if l.startswith("> 摘要") or (not new[-1] and l.strip() == ""):
+            continue
+        new.append(l)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(new).strip() + "\n")
     _midterm_cache[user_id] = summary
