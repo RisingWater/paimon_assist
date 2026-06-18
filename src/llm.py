@@ -44,7 +44,7 @@ def _build_system() -> dict:
     # 附加长期记忆摘要
     from llm_tools.memory import memory_summary
     if memory_summary:
-        content += f"\n[家庭信息] {memory_summary}"
+        content += f"\n[长期记忆] {memory_summary}"
     return {"role": "system", "content": content}
 
 
