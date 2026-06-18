@@ -88,20 +88,44 @@ _rebuild_summary_simple()
 @register(memory_value=0,
     name="read_memory",
     description=(
-        "读取长期记忆文件，获取已知的用户偏好、身份、房间归属等信息。"
-        "在回答涉及用户个人信息或房间设备归属时，应先读取此文件。"
+        "读取长期+中期记忆，获取已知的用户偏好、身份、房间归属等信息。"
+        "当 question_about 指定具体用户时会同时读取该用户的中期记忆。"
     ),
-    parameters={"type": "object", "properties": {}, "required": []},
+    parameters={
+        "type": "object",
+        "properties": {
+            "question_about": {
+                "type": "string",
+                "description": "问题涉及的用户名，如'王旭'，用于读取该用户的中期记忆。不填只返回长期记忆。",
+            }
+        },
+        "required": [],
+    },
 )
-def read_memory(_args: dict = {}) -> str:
+def read_memory(args: dict = {}) -> str:
+    parts = []
     try:
         if not os.path.exists(_MEMORY_FILE):
-            return "（暂无长期记忆）"
-        with open(_MEMORY_FILE, encoding="utf-8") as f:
-            content = f.read().strip()
-        return content if content else "（暂无长期记忆）"
+            parts.append("（暂无长期记忆）")
+        else:
+            with open(_MEMORY_FILE, encoding="utf-8") as f:
+                parts.append(f.read().strip())
     except Exception as e:
-        return f"读取记忆失败：{e}"
+        parts.append(f"读取长期记忆失败：{e}")
+
+    # 如果有对应用户，查中期记忆
+    name = (args or {}).get("question_about", "")
+    if name:
+        import db as _db
+        users = _db.list_users()
+        for u in users:
+            if u["name"] == name:
+                mid = _read_midterm_raw(u["id"])
+                if mid:
+                    parts.append(f"\n[{name}的近期动态]\n{mid}")
+                break
+
+    return "\n".join(parts) if parts else "（暂无记忆）"
 
 
 @register(memory_value=10,
