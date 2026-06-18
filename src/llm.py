@@ -41,10 +41,10 @@ def _build_system() -> dict:
     """构建带当前时间和记忆摘要的 system prompt"""
     now = datetime.now().strftime("现在是%Y年%m月%d日 %A %H:%M。")
     content = now + _DEFAULT_RULES_PREFIX
-    # 附加长期记忆摘要
-    from llm_tools.memory import memory_summary
-    if memory_summary:
-        content += f"\n[长期记忆] {memory_summary}"
+    # 附加长期记忆摘要（动态读取，避免 import 缓存旧值）
+    import llm_tools.memory as _mem_mod
+    if _mem_mod.memory_summary:
+        content += f"\n[长期记忆] {_mem_mod.memory_summary}"
     return {"role": "system", "content": content}
 
 
@@ -63,9 +63,9 @@ def _get_history(user_id: int) -> list[dict]:
 
     messages = [system]
 
-    # 附加中期记忆摘要
-    from llm_tools.memory import get_midterm_summary
-    mid = get_midterm_summary(user_id)
+    # 附加中期记忆摘要（动态读取，避免 import 缓存旧值）
+    import llm_tools.memory as _mem_mod
+    mid = _mem_mod.get_midterm_summary(user_id)
     if mid:
         messages.append({"role": "system", "content": f"[近期回顾] {mid}"})
 
