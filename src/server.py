@@ -327,6 +327,55 @@ async def api_delete_reminder(rid: int):
     return {"ok": True}
 
 
+# ---- 记忆编辑 ----
+
+@app.get("/api/memory/{name}")
+async def api_read_memory(name: str):
+    """读取记忆文件。name='long' 读长期记忆，数字=user_id 读中期记忆"""
+    import llm_tools.memory as _mem
+    try:
+        if name == "long":
+            path = _mem._MEMORY_FILE
+        elif name.isdigit():
+            path = _mem._midterm_file(int(name))
+        else:
+            raise HTTPException(400, "无效的记忆名称")
+        if not os.path.isfile(path):
+            return {"content": ""}
+        with open(path, encoding="utf-8") as f:
+            return {"content": f.read()}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
+@app.put("/api/memory/{name}")
+async def api_save_memory(name: str, req: dict):
+    """保存记忆文件，自动重建摘要"""
+    import llm_tools.memory as _mem
+    content = req.get("content", "")
+    try:
+        if name == "long":
+            path = _mem._MEMORY_FILE
+        elif name.isdigit():
+            path = _mem._midterm_file(int(name))
+        else:
+            raise HTTPException(400, "无效的记忆名称")
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(content)
+        # 重建摘要
+        if name == "long":
+            _mem._rebuild_summary_simple()
+        else:
+            _mem._rebuild_midterm_summary(int(name))
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, str(e))
+
+
 # ---- SPA fallback（必须放在所有路由之后） ----
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
