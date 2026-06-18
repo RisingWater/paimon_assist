@@ -25,6 +25,7 @@ from vits.text import text_to_sequence
 from vits.text.symbols import symbols
 
 from tts_cache import TTSCache
+import audio_manager
 
 
 def _load_config(config_path: str) -> dict:
@@ -144,10 +145,11 @@ class VitsTTS:
     # ---- 播放 ----
 
     def speak(self, text: str):
-        """合成并播放（后台线程，不阻塞）"""
+        """合成并播放（异步，入队即返回）"""
         def _run():
             audio = self.synthesize(text)
-            self._play(audio)
+            audio_manager.init()
+            audio_manager.get().play_async(audio)
         threading.Thread(target=_run, daemon=True).start()
 
     def speak_sync(self, text: str):
@@ -240,20 +242,9 @@ class VitsTTS:
         pa.terminate()
 
     def _play(self, audio: np.ndarray):
-        """通过 PyAudio 播放音频"""
-        sr = self._hps.data.sampling_rate if self._hps else self.sample_rate
-        pa = pyaudio.PyAudio()
-        stream = pa.open(
-            format=pyaudio.paFloat32,
-            channels=1,
-            rate=sr,
-            output=True,
-            output_device_index=self.play_device,
-        )
-        stream.write(audio.tobytes())
-        stream.stop_stream()
-        stream.close()
-        pa.terminate()
+        """通过音频管理器播放（同步：阻塞到播完）"""
+        audio_manager.init()
+        audio_manager.get().play_sync(audio)
 
     def wake_ack(self):
         """唤醒应答（非阻塞）"""

@@ -196,7 +196,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 if should_play:
                     try:
                         from vits_tts import tts as _tts
-                        _tts.speak_sync(tool_prefix)
+                        _tts.speak(tool_prefix)
                     except Exception:
                         pass
                 tool_prefix = ""  # 只处理一次

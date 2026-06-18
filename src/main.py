@@ -42,6 +42,7 @@ import vad
 import voiceprint
 from stt import stt
 import llm
+import audio_manager
 import reminder_thread
 
 
@@ -60,6 +61,7 @@ async def main():
     stt.load()
     voiceprint.load()
     tts.load()
+    audio_manager.init()
     reminder_thread.start()
 
     _log.info("Threshold=%.2f Voiceprint=%.2f", THRESHOLD, VOICEPRINT_THRESHOLD)
