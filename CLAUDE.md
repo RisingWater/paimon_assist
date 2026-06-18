@@ -68,7 +68,9 @@ chat_history (id, user_id, role, content, created_at)
   → tool_calls 消息存为完整 JSON
 reminders (id, user_id, content, rtype, datetime, lunar, done, created_at)
   → rtype: once/daily/monthly, lunar: 0=公历 1=农历
-memory.md           ← 长期记忆文件（不提交 git）
+memory/
+  memory.md            ← 长期记忆文件（不提交 git）
+  {user_id}.md         ← 中期记忆文件（不提交 git）
 ```
 
 ## 声纹匹配算法
@@ -102,7 +104,15 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `set_volume` | 设置扬声器音量（0-200%） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 
-新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register()` 装饰 → 在 `__init__.py` 导入。
+每个工具标注 `memory_value`（0-10）：0=无记忆价值（开关/查询），5-8=中高价值（定位/搜索），10=极高（save_memory）。
+
+新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register(memory_value=N)` 装饰 → 在 `__init__.py` 导入。
+
+## 记忆系统
+
+- **长期记忆**：`memory/memory.md`，通过 `save_memory`/`read_memory` 工具读写，200 字摘要贴到 system prompt
+- **中期记忆**：`memory/{user_id}.md`，在聊天后自动提取。规则：如果本轮对话涉及 memory_value=0 的 tool（如开关空调），整轮丢弃；纯聊天或高价值 tool 记入
+- **对话上下文**：只保留最近 5 分钟的 chat_history，超出部分交给中期记忆
 
 ## 依赖
 
