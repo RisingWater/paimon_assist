@@ -96,6 +96,11 @@ async def main():
             text = await asyncio.to_thread(stt.transcribe, audio_path)
             _log.info("STT: '%s' (%.1fs)", text, time.time()-t1)
 
+            # 过滤太短的输入（< 4 个字不送 LLM）
+            if text.strip() and len(text.strip()) < 4:
+                _log.info("STT too short, skipped")
+                text = ""
+
             # 4. LLM + 同步播放回复
             if text.strip():
                 t2 = time.time()
