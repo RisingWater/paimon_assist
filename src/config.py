@@ -10,7 +10,7 @@ THRESHOLD = float(os.getenv("THRESHOLD", "0.25"))
 DEBOUNCE = float(os.getenv("DEBOUNCE", "1.0"))
 
 # --- TTS ---
-TTS_URL = os.getenv("TTS_URL", "http://192.168.1.180:6018/api/tts/speak")
+TTS_URL = os.getenv("TTS_URL", "http://192.168.1.180:6019/api/v1/tts/generateJson")
 TTS_TEXT = os.getenv("TTS_TEXT", "我在呢")
 TTS_CACHE_DIR = os.getenv("TTS_CACHE_DIR", "models/tts_cache")
 
