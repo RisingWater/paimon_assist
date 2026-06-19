@@ -53,7 +53,7 @@ export default function SystemConfigModal({ open, onClose }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tts_backend: ttsBackend }),
       })
-      message.success("TTS 配置已保存，重启后生效")
+      message.success("TTS 配置已保存")
     } catch { message.error("保存失败") }
   }
 
