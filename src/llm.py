@@ -11,15 +11,9 @@ import llm_tools
 
 _log = logging.getLogger(__name__)
 
-_TOOL_CONFIG = os.path.join(os.path.dirname(__file__), "llm_tools", "tool_config.json")
-
-
 def _load_silent_tools() -> set[str]:
-    try:
-        with open(_TOOL_CONFIG, encoding="utf-8") as f:
-            return set(json.load(f).get("silent", []))
-    except Exception:
-        return set()
+    import settings
+    return settings.get_silent_tools()
 
 _DEFAULT_RULES_PREFIX = (
     "你是派萌，一个可爱的AI助手。你的回答会通过语音播放给用户听。"

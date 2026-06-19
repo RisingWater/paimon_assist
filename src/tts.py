@@ -26,8 +26,8 @@ def _ensure_loaded():
 
 def _resolve():
     """动态读取当前 TTS 后端"""
-    from server import _tts_backend
-    return _tts_backend
+    import settings
+    return settings.get("tts_backend")
 
 
 def speak(text: str):

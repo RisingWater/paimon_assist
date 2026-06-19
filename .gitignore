@@ -32,8 +32,8 @@ memory/
 # 音频
 pulse
 
-# llm配置
-src/llm_tools/tool_config.json
+# 运行时配置
+settings/
 
 # .claude
 .claude
