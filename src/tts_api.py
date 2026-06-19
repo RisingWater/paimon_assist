@@ -35,34 +35,36 @@ async def text_to_speech(req: TTSRequest):
     if not text:
         raise HTTPException(status_code=400, detail="文本不能为空")
 
-    # 直接用 VITS 对象合成（保证 format/rate 一致）
+    # 用当前 TTS 后端合成
     import soundfile as sf
     from pathlib import Path
     from tts_cache import TTSCache
     cache = TTSCache(Path(TTS_CACHE_DIR))
 
-    backend = "vits"
+    backend = _tts_mod._backend()
     cached_hit = cache.get(text, backend)
     if cached_hit is not None:
-        logger.info(f"TTS cache hit: {text[:30]}...")
+        logger.info(f"TTS cache hit ({backend}): {text[:30]}...")
         info = sf.info(str(cached_hit))
         if req.play:
             audio, sr = sf.read(str(cached_hit), dtype="float32")
             audio_manager.get().play_async(audio, sr)
         return TTSResponse(cached=True, file=str(cached_hit), duration_ms=int(info.duration * 1000))
 
-    logger.info(f"TTS synthesize: {text[:30]}...")
+    logger.info(f"TTS synthesize ({backend}): {text[:30]}...")
     try:
-        audio = await asyncio.to_thread(_tts_mod._vits.synthesize, text, req.length_scale)
+        tts_obj = _tts_mod._get()
+        audio = await asyncio.to_thread(tts_obj.synthesize, text, req.length_scale)
+        sr = getattr(tts_obj, "sample_rate", 22050)
     except Exception as e:
-        logger.error(f"VITS synthesis failed: {e}")
+        logger.error(f"TTS synthesis failed: {e}")
         raise HTTPException(status_code=500, detail=f"语音合成失败: {e}")
 
     path = cache.get(text, backend)
-    duration_ms = int(len(audio) / _tts_mod._vits.sample_rate * 1000)
+    duration_ms = int(len(audio) / sr * 1000)
 
     if req.play:
-        audio_manager.get().play_async(audio, _tts_mod._vits.sample_rate)
+        audio_manager.get().play_async(audio, sr)
 
     return TTSResponse(cached=False, file=str(path), duration_ms=duration_ms)
 
