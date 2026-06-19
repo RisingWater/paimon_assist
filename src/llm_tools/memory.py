@@ -2,6 +2,7 @@
 import logging
 import os
 import re
+import time
 import threading
 from llm_tools import register
 
@@ -309,7 +310,7 @@ def _midterm_periodic_check():
     """每 5 分钟检查：扫描 memory/ 目录，对变化的中期记忆文件用 LLM 重建摘要"""
     global _midterm_check_running, _midterm_mtimes
     while True:
-        _time.sleep(300)
+        time.sleep(300)
         try:
             if not os.path.isdir(_MIDTERM_DIR):
                 continue

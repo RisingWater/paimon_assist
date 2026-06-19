@@ -43,14 +43,14 @@ def get(key: str):
     return config.get(key, _DEFAULTS.get(key))
 
 
-def set(key: str, value):
+def set_config(key: str, value):
     config[key] = value
     _save(config)
 
 
-def get_silent_tools() -> set[str]:
+def get_silent_tools() -> "set[str]":
     return set(get("silent_tools"))
 
 
-def set_silent_tools(tools: set[str]):
-    set("silent_tools", sorted(tools))
+def set_silent_tools(tools: "set[str]"):
+    set_config("silent_tools", sorted(tools))

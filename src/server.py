@@ -408,7 +408,7 @@ async def api_get_system_config():
 async def api_save_system_config(req: dict):
     global _tts_backend
     backend = req.get("tts_backend", "vits")
-    _settings_mod.set("tts_backend", backend)
+    _settings_mod.set_config("tts_backend", backend)
     _tts_backend = backend
     return {"ok": True, "tts_backend": backend}
 
