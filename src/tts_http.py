@@ -21,7 +21,7 @@ class HttpTTS:
     def load(self):
         _log.info("HTTP TTS ready: %s", TTS_URL)
 
-    def synthesize(self, text: str) -> tuple[np.ndarray, int]:
+    def synthesize(self, text: str, length_scale: float = 1.0) -> tuple[np.ndarray, int]:
         cached = self.cache.get(text, "http")
         if cached is not None:
             return sf.read(str(cached), dtype="float32")
