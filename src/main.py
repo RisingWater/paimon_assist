@@ -111,6 +111,12 @@ async def main():
 
                 if reply == "__SKIP__":
                     _log.info("LLM skip (noise/misrecognition)")
+                    import os as _os
+                    try:
+                        if _os.path.isfile(audio_path):
+                            _os.remove(audio_path)
+                    except Exception:
+                        pass
                 elif reply:
                     t3 = time.time()
                     await asyncio.to_thread(tts.speak_sync, reply)
