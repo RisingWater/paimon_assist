@@ -25,10 +25,22 @@ class HttpTTS:
         cached = self.cache.get(text, "http")
         if cached is not None:
             return sf.read(str(cached), dtype="float32")
-        resp = requests.post(TTS_URL, json={"text": text, "play": False}, timeout=30)
+
+        payload = {
+            "data": [{"text": text, "voice": "zh-CN-XiaoxiaoNeural", "rate": "0%", "pitch": "0Hz", "volume": "0%"}]
+        }
+        resp = requests.post(TTS_URL, json=payload, timeout=30)
         resp.raise_for_status()
-        data = resp.json()
-        audio, sr = sf.read(data["file"], dtype="float32")
+
+        # 保存临时文件再读取（sf.read 需要文件路径）
+        import tempfile
+        with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
+            tmp.write(resp.content)
+            tmp_path = tmp.name
+        audio, sr = sf.read(tmp_path, dtype="float32")
+        import os
+        os.unlink(tmp_path)
+
         self.cache.save(text, audio, sr, "http")
         return audio, sr
 
