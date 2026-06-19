@@ -405,19 +405,38 @@ async def api_save_tool_config(req: dict):
 
 # ---- 系统配置 ----
 
-# 运行时 TTS 后端（动态切换，不重启）
-_tts_backend = "vits"
+_SYS_CONFIG_FILE = "system_config.json"
+
+
+def _load_sys_config():
+    if os.path.isfile(_SYS_CONFIG_FILE):
+        with open(_SYS_CONFIG_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    return {"tts_backend": "vits"}
+
+
+def _save_sys_config(cfg: dict):
+    with open(_SYS_CONFIG_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+_sys_config = _load_sys_config()
+
+# tts.py 分发模块读取此变量
+_tts_backend = _sys_config.get("tts_backend", "vits")
 
 
 @app.get("/api/system-config")
 async def api_get_system_config():
-    return {"tts_backend": _tts_backend}
+    return _sys_config
 
 
 @app.put("/api/system-config")
 async def api_save_system_config(req: dict):
-    global _tts_backend
-    _tts_backend = req.get("tts_backend", _tts_backend)
+    global _sys_config, _tts_backend
+    _sys_config["tts_backend"] = req.get("tts_backend", _sys_config.get("tts_backend", "vits"))
+    _tts_backend = _sys_config["tts_backend"]
+    _save_sys_config(_sys_config)
     return {"ok": True, "tts_backend": _tts_backend}
 
 
