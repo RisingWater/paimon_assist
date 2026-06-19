@@ -1,76 +1,36 @@
 """TTS 播报 — 根据 settings.json 自动分发到 VITS 或 HTTP"""
 import logging
+from vits_tts import tts as _vits, speak as _vs, wake_ack as _va, wake_ack_sync as _vas, load as _vl
+from tts_http import speak as _hs, wake_ack as _ha, wake_ack_sync as _has, load as _hl
 
 _log = logging.getLogger(__name__)
 
-_vits_loaded = False
-_http_loaded = False
 
-
-def _resolve():
+def _backend():
     import settings
     return settings.get("tts_backend")
 
 
-def _ensure_vits():
-    global _vits_loaded
-    if _vits_loaded:
-        return
-    from vits_tts import load as vl
-    vl()
-    _vits_loaded = True
-    _log.info("TTS backend: vits loaded")
-
-
-def _ensure_http():
-    global _http_loaded
-    if _http_loaded:
-        return
-    from tts_http import load as hl
-    hl()
-    _http_loaded = True
-    _log.info("TTS backend: http loaded")
+def load():
+    _vl()
+    _hl()
+    _log.info("Both TTS backends loaded")
 
 
 def speak(text: str):
-    if _resolve() == "http":
-        _ensure_http()
-        from tts_http import speak as s; s(text)
-    else:
-        _ensure_vits()
-        from vits_tts import speak as s; s(text)
+    _hs(text) if _backend() == "http" else _vs(text)
 
 
 def wake_ack():
-    if _resolve() == "http":
-        _ensure_http()
-        from tts_http import wake_ack as w; w()
-    else:
-        _ensure_vits()
-        from vits_tts import wake_ack as w; w()
+    _ha() if _backend() == "http" else _va()
 
 
 def wake_ack_sync():
-    if _resolve() == "http":
-        _ensure_http()
-        from tts_http import wake_ack_sync as w; w()
-    else:
-        _ensure_vits()
-        from vits_tts import wake_ack_sync as w; w()
+    _has() if _backend() == "http" else _vas()
 
 
 def speak_sync(text: str):
-    if _resolve() == "http":
-        _ensure_http()
-        from tts_http import speak_sync as s; s(text)
+    if _backend() == "http":
+        _hs(text)
     else:
-        _ensure_vits()
-        from vits_tts import tts
-        tts.speak_sync(text)
-
-
-def load():
-    if _resolve() == "http":
-        _ensure_http()
-    else:
-        _ensure_vits()
+        _vits.speak_sync(text)
