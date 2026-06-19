@@ -37,7 +37,7 @@ from config import THRESHOLD, VOICEPRINT_THRESHOLD
 
 _log = logging.getLogger("main")
 import wakeword as ww
-from vits_tts import tts
+import tts
 import vad
 import voiceprint
 from stt import stt

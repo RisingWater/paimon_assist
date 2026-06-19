@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { Layout, Tabs, Typography, App } from "antd"
+import { Layout, Tabs, Typography, App, Button } from "antd"
 import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined } from "@ant-design/icons"
 import { api, type User } from "./api"
 import UserTab from "./components/UserTab"
@@ -7,7 +7,7 @@ import VoiceprintTab from "./components/VoiceprintTab"
 import ChatTab from "./components/ChatTab"
 import ReminderTab from "./components/ReminderTab"
 import MemoryTab from "./components/MemoryTab"
-import ToolConfigTab from "./components/ToolConfigTab"
+import SystemConfigModal from "./components/SystemConfigModal"
 
 const { Header, Content } = Layout
 
@@ -15,6 +15,7 @@ export default function Root() {
   const { message } = App.useApp()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
+  const [cfgOpen, setCfgOpen] = useState(false)
 
   async function loadData() {
     setLoading(true)
@@ -55,11 +56,6 @@ export default function Root() {
       label: <span><BookOutlined /> 记忆管理</span>,
       children: <MemoryTab users={users} />,
     },
-    {
-      key: "tools",
-      label: <span><SettingOutlined /> 工具配置</span>,
-      children: <ToolConfigTab />,
-    },
   ]
 
   return (
@@ -69,10 +65,13 @@ export default function Root() {
           派萌助手
         </Typography.Title>
         <Typography.Text type="secondary">管理后台</Typography.Text>
+        <div style={{ flex: 1 }} />
+        <Button type="text" icon={<SettingOutlined />} onClick={() => setCfgOpen(true)} />
       </Header>
       <Content style={{ maxWidth: 960, width: "100%", margin: "24px auto", padding: "0 20px" }}>
         <Tabs defaultActiveKey="users" items={tabs} />
       </Content>
+      <SystemConfigModal open={cfgOpen} onClose={() => setCfgOpen(false)} />
     </Layout>
   )
 }

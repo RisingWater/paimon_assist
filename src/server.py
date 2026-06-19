@@ -403,6 +403,24 @@ async def api_save_tool_config(req: dict):
     return {"ok": True}
 
 
+# ---- 系统配置 ----
+
+# 运行时 TTS 后端（动态切换，不重启）
+_tts_backend = "vits"
+
+
+@app.get("/api/system-config")
+async def api_get_system_config():
+    return {"tts_backend": _tts_backend}
+
+
+@app.put("/api/system-config")
+async def api_save_system_config(req: dict):
+    global _tts_backend
+    _tts_backend = req.get("tts_backend", _tts_backend)
+    return {"ok": True, "tts_backend": _tts_backend}
+
+
 # ---- SPA fallback（必须放在所有路由之后） ----
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
