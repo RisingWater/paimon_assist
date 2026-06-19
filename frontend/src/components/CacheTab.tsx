@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Button, Input, Table, Typography, App, Popconfirm, Tag, Space } from "antd"
-import { DeleteOutlined, ClearOutlined } from "@ant-design/icons"
+import { DeleteOutlined, ClearOutlined, SoundOutlined } from "@ant-design/icons"
 
 interface CacheItem {
   id: number
@@ -15,6 +15,8 @@ export default function CacheTab() {
   const [items, setItems] = useState<CacheItem[]>([])
   const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState("")
+  const [testText, setTestText] = useState("")
+  const [speaking, setSpeaking] = useState(false)
 
   async function load(q?: string) {
     setLoading(true)
@@ -39,6 +41,21 @@ export default function CacheTab() {
     load()
   }
 
+  async function handleTestSpeak() {
+    if (!testText.trim()) return
+    setSpeaking(true)
+    try {
+      await fetch("/api/tts/speak", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: testText.trim(), play: true }),
+      })
+      message.success("已播放")
+      load()
+    } catch { message.error("播放失败") }
+    finally { setSpeaking(false); setTestText("") }
+  }
+
   const backendColor: Record<string, string> = { vits: "blue", http: "orange" }
 
   return (
@@ -58,6 +75,20 @@ export default function CacheTab() {
             <Button danger icon={<ClearOutlined />}>清空全部</Button>
           </Popconfirm>
         </Space>
+      </div>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <Input.TextArea
+          value={testText}
+          onChange={e => setTestText(e.target.value)}
+          onPressEnter={e => { if (!e.shiftKey) { e.preventDefault(); handleTestSpeak() } }}
+          placeholder="输入文字测试说话…"
+          autoSize={{ minRows: 1, maxRows: 2 }}
+          style={{ flex: 1 }}
+        />
+        <Button type="primary" icon={<SoundOutlined />} onClick={handleTestSpeak} loading={speaking}>
+          说话
+        </Button>
       </div>
 
       <Table
