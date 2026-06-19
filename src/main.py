@@ -111,10 +111,18 @@ async def main():
 
                 if reply == "__SKIP__":
                     _log.info("LLM skip (noise/misrecognition)")
+                    # 清理录音和刚添加的声纹
                     import os as _os
                     try:
                         if _os.path.isfile(audio_path):
                             _os.remove(audio_path)
+                    except Exception:
+                        pass
+                    import db
+                    try:
+                        vps = db.list_voiceprints(user_id)
+                        if vps:
+                            db.delete_voiceprint(vps[-1]["id"])
                     except Exception:
                         pass
                 elif reply:
