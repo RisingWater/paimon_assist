@@ -13,7 +13,6 @@ from tts_cache import TTSCache
 _log = logging.getLogger(__name__)
 
 _cache = TTSCache(Path(TTS_CACHE_DIR))
-SAMPLE_RATE = 22050
 
 
 synthesize = None
@@ -51,13 +50,13 @@ def load():
 
     def _play(audio: np.ndarray, sr: int):
         import audio_manager
-        audio_manager.get().play_sync(audio)
+        audio_manager.get().play_sync(audio, sr)
 
     def _speak(text: str):
         def _run():
             audio, sr = _synthesize(text)
             import audio_manager
-            audio_manager.get().play_async(audio)
+            audio_manager.get().play_async(audio, sr)
         threading.Thread(target=_run, daemon=True).start()
 
     def _speak_sync(text: str):

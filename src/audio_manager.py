@@ -32,18 +32,20 @@ class AudioManager:
 
     # ---- 播放 ----
 
-    def play_async(self, audio: np.ndarray):
+    def play_async(self, audio: np.ndarray, sample_rate: int = 0):
         """入队即返回"""
-        self._queue.put(audio.tobytes())
+        sr = sample_rate or self.play_sample_rate
+        self._queue.put((audio.tobytes(), sr))
 
-    def play_sync(self, audio: np.ndarray):
+    def play_sync(self, audio: np.ndarray, sample_rate: int = 0):
         """入队，阻塞到该音频被播放完毕"""
+        sr = sample_rate or self.play_sample_rate
         with self._lock:
             self._id_counter += 1
             chunk_id = self._id_counter
             event = threading.Event()
             self._done_events[chunk_id] = event
-        self._queue.put((chunk_id, audio.tobytes()))
+        self._queue.put((chunk_id, audio.tobytes(), sr))
         event.wait()
 
     # ---- 录音 ----
@@ -92,25 +94,33 @@ class AudioManager:
         pa = pyaudio.PyAudio()
 
         while self._running:
-            item = self._queue.get()  # 阻塞等数据
+            item = self._queue.get()
             if item is None:
                 break
 
+            sr = self.play_sample_rate
+            if isinstance(item, tuple):
+                if len(item) == 3:  # sync: (chunk_id, data, sr)
+                    chunk_id, data, sr = item
+                elif len(item) == 2:  # async: (data, sr)
+                    data, sr = item
+                    chunk_id = None
+                else:
+                    chunk_id, data = item
+            else:
+                data, chunk_id = item, None
+
             stream = pa.open(
                 format=pyaudio.paFloat32, channels=1,
-                rate=self.play_sample_rate, output=True,
+                rate=sr, output=True,
                 output_device_index=self.play_device,
             )
+            stream.write(data)
 
-            if isinstance(item, tuple):
-                chunk_id, data = item
-                stream.write(data)
+            if chunk_id is not None:
                 with self._lock:
                     if chunk_id in self._done_events:
                         self._done_events.pop(chunk_id).set()
-            else:
-                data = item
-                stream.write(data)
 
             stream.stop_stream()
             stream.close()
