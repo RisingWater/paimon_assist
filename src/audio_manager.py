@@ -90,20 +90,11 @@ class AudioManager:
         self._queue.put(None)
 
     def _play_loop(self):
-        import time as _time
         pa = pyaudio.PyAudio()
         stream = None
 
         while self._running:
-            try:
-                item = self._queue.get(timeout=2)
-            except queue.Empty:
-                if stream is not None:
-                    stream.stop_stream()
-                    stream.close()
-                    stream = None
-                continue
-
+            item = self._queue.get()  # 阻塞等数据
             if item is None:
                 break
 
@@ -123,6 +114,12 @@ class AudioManager:
             else:
                 data = item
                 stream.write(data)
+
+            # 队列空了就立即关 stream，避免 underrun
+            if self._queue.empty():
+                stream.stop_stream()
+                stream.close()
+                stream = None
 
         if stream is not None:
             stream.stop_stream()
