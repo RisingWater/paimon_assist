@@ -440,6 +440,35 @@ async def api_cache_delete(cache_id: int):
 async def api_cache_clear():
     db.cache_clear()
     return {"ok": True}
+# ---- 备份/恢复 ----
+
+@app.post("/api/backup")
+async def api_backup():
+    import zipfile, io
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in ["db/paimon.db", ".env", "settings/settings.json"]:
+            if os.path.isfile(path): zf.write(path)
+        for d in ["memory", "recordings", "models/tts_cache", "settings"]:
+            if os.path.isdir(d):
+                for root, _, files in os.walk(d):
+                    for f in files:
+                        zf.write(os.path.join(root, f))
+    buf.seek(0)
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(buf, media_type="application/zip",
+        headers={"Content-Disposition": "attachment; filename=paimon_backup.zip"})
+
+
+@app.post("/api/restore")
+async def api_restore(file: UploadFile = File(...)):
+    import zipfile, io
+    content = await file.read()
+    with zipfile.ZipFile(io.BytesIO(content)) as zf:
+        zf.extractall(".")
+    return {"ok": True, "message": "已恢复，重启生效"}
+
+
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
     # API 和静态资源不走 fallback
