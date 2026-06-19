@@ -32,14 +32,19 @@ class HttpTTS:
         resp = requests.post(TTS_URL, json=payload, timeout=30)
         resp.raise_for_status()
 
-        # 保存临时文件再读取（sf.read 需要文件路径）
-        import tempfile
+        # MP3 → WAV 转换（PyAudio 需要 PCM）
+        import tempfile, subprocess, os
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             tmp.write(resp.content)
-            tmp_path = tmp.name
-        audio, sr = sf.read(tmp_path, dtype="float32")
-        import os
-        os.unlink(tmp_path)
+            mp3_path = tmp.name
+        wav_path = mp3_path + ".wav"
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", mp3_path, "-f", "wav", wav_path],
+            capture_output=True,
+        )
+        audio, sr = sf.read(wav_path, dtype="float32")
+        os.unlink(mp3_path)
+        os.unlink(wav_path)
 
         self.cache.save(text, audio, sr, "http")
         return audio, sr
