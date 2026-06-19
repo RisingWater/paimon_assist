@@ -81,7 +81,7 @@ async def main():
             filename = await asyncio.to_thread(vad.record, counter)
 
             # 2. 声纹验证
-            user_id, info, audio_path = await asyncio.to_thread(voiceprint.verify, filename)
+            user_id, info, audio_path, vp_id = await asyncio.to_thread(voiceprint.verify, filename)
             if info.startswith("enrolled:"):
                 speaker = ""
                 _log.info("Voiceprint: ENROLLED (user_id=%d)", user_id)
@@ -119,12 +119,8 @@ async def main():
                     except Exception:
                         pass
                     import db
-                    try:
-                        vps = db.list_voiceprints(user_id)
-                        if vps:
-                            db.delete_voiceprint(vps[-1]["id"])
-                    except Exception:
-                        pass
+                    if vp_id:
+                        db.delete_voiceprint(vp_id)
                 elif reply:
                     t3 = time.time()
                     await asyncio.to_thread(tts.speak_sync, reply)

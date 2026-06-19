@@ -135,16 +135,17 @@ def delete_user(user_id: int):
 # 声纹操作
 # ============================================================
 
-def enroll(user_id: int, emb: np.ndarray, audio_path: str = "", vp_type: str = "auto"):
-    """为指定用户添加一条声纹。vp_type: 'auto'（自动录音）或 'manual'（手动上传）
+def enroll(user_id: int, emb: np.ndarray, audio_path: str = "", vp_type: str = "auto") -> int:
+    """为指定用户添加一条声纹，返回声纹 ID。vp_type: 'auto'/'manual'
 
     自动声纹上限 100 条，超出时删除最早的。
     """
     conn = _connect()
-    conn.execute(
+    cur = conn.execute(
         "INSERT INTO voiceprints (user_id, vector, audio_path, type) VALUES (?, ?, ?, ?)",
         (user_id, emb.astype(np.float32).tobytes(), audio_path, vp_type),
     )
+    vp_id = cur.lastrowid
     conn.commit()
 
     # 自动声纹上限 100，超出删最早的
@@ -172,6 +173,7 @@ def enroll(user_id: int, emb: np.ndarray, audio_path: str = "", vp_type: str = "
             conn.commit()
 
     conn.close()
+    return vp_id
 
 
 def count() -> int:
