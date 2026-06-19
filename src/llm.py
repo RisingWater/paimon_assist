@@ -211,6 +211,13 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                     db.append_message(user_id, "tool", json.dumps(tool_msg, ensure_ascii=False))
 
         reply = msg.get("content", "")
+        if reply == "__SKIP__":
+            # 无效对话，删除用户消息不存历史
+            if user_id:
+                rows = db.load_history(user_id)
+                if rows:
+                    db.delete_message(rows[-1]["id"])
+            return "__SKIP__"
         if reply:
             history.append({"role": "assistant", "content": reply})
             if user_id:
