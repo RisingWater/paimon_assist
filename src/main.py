@@ -104,7 +104,9 @@ async def main():
                 dt = time.time() - t2
                 _log.info("LLM: '%s' (%.1fs)", reply, dt)
 
-                if reply:
+                if reply == "__SKIP__":
+                    _log.info("LLM skip (noise/misrecognition)")
+                elif reply:
                     t3 = time.time()
                     await asyncio.to_thread(tts.speak_sync, reply)
                     if time.time() - t3 > 0.5:
