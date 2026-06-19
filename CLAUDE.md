@@ -19,10 +19,11 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/main.py` | 入口 + ONNX patch + 主循环 + `--web-only` | — |
 | `src/config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
 | `src/wakeword.py` | 唤醒词检测 | `create_listener()` |
-| `src/vits_tts.py` | VITS 本地合成（Paimon 音色，22050Hz），内置缓存 | `synthesize(text)`, `speak(text)`, `wake_ack()`, `speak_sync(text)` |
-| `src/tts_http.py` | HTTP TTS 后端（调用外部 EasyVoice API） | `speak(text)`, `wake_ack()`, `speak_sync(text)` |
-| `src/tts.py` | TTS 后端分发（vits / http 动态切换） | `speak(text)`, `wake_ack()`, `speak_sync(text)`, `load()` |
-| `src/audio_manager.py` | 统一音频管理（播放队列 + 录音） | `init()`, `play_async()`, `play_sync()`, `record()` |
+| `src/tts/` | TTS 模块 — VITS/HTTP 工厂 + 缓存 + API + 音频管理 | `import tts` |
+| `src/tts/vits_tts.py` | VitsTTS（Paimon 22050Hz） | `synthesize() → (audio, sr)` |
+| `src/tts/tts_http.py` | HttpTTS（EasyVoice API） | `synthesize() → (audio, sr)` |
+| `src/tts/__init__.py` | TTS 工厂分发 | `speak()`, `wake_ack()`, `load()` |
+| `src/tts/audio_manager.py` | 统一音频管理（播放 + 录音） | `play_async()`, `play_sync()`, `record()` |
 | `src/settings.py` | 统一配置读写（settings/settings.json） | `get(key)`, `set(key, value)` |
 | `src/vad.py` | VAD 录音，委托给 AudioManager | `record(counter) -> filename` |
 | `src/voiceprint.py` | 声纹提取 + 多声纹平均匹配 | `verify(wav_path) -> (user_id, info)` |
@@ -41,8 +42,8 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/ask_user.py` | 反问用户收集信息 | `ask_question_to_user` |
 | `src/reminder_thread.py` | 定时提醒后台线程（每分钟检查） | `start()` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
-| `src/tts_api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
-| `src/tts_cache.py` | MD5 WAV 缓存，避免重复合成 | `TTSCache` |
+| `src/tts/api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
+| `src/tts/cache.py` | MD5 WAV 缓存，DB 存储 | `TTSCache` |
 | `src/vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
 | `frontend/` | React + Vite + antd 前端（6 tabs） | bun run dev / bun run build |
 
