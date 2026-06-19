@@ -87,8 +87,8 @@ export default function SystemConfigModal({ open, onClose }: Props) {
         {tools.map(t => (
           <div key={t.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
             <Switch size="small" checked={silent.has(t.name)} onChange={v => toggleTool(t.name, v)} />
-            <Typography.Text code style={{ width: 160, fontSize: 12 }}>{t.name}</Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>{t.description}</Typography.Text>
+            <Typography.Text code style={{ width: 200, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>{t.name}</Typography.Text>
+            <Typography.Text type="secondary" style={{ fontSize: 12, flex: 1 }}>{t.description}</Typography.Text>
           </div>
         ))}
       </Spin>
