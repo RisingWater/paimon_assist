@@ -7,8 +7,8 @@ venv/
 # SenseVoiceSmall 模型（大文件，首次运行自动下载）
 models/iic/
 
-# 声纹数据库（首次运行自动生成）
-models/voiceprints.db
+# 数据库（首次运行自动生成）
+db/
 
 # TTS 缓存（自动生成，避免重复合成）
 models/tts_cache/
