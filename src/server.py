@@ -381,7 +381,7 @@ async def api_save_memory(name: str, req: dict):
 
 # ---- 系统配置 ----
 
-import src.settings as _settings_mod
+import settings as _settings_mod
 
 _tts_backend = _settings_mod.get("tts_backend")
 
