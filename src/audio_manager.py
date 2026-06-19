@@ -91,19 +91,17 @@ class AudioManager:
 
     def _play_loop(self):
         pa = pyaudio.PyAudio()
-        stream = None
 
         while self._running:
             item = self._queue.get()  # 阻塞等数据
             if item is None:
                 break
 
-            if stream is None:
-                stream = pa.open(
-                    format=pyaudio.paFloat32, channels=1,
-                    rate=self.play_sample_rate, output=True,
-                    output_device_index=self.play_device,
-                )
+            stream = pa.open(
+                format=pyaudio.paFloat32, channels=1,
+                rate=self.play_sample_rate, output=True,
+                output_device_index=self.play_device,
+            )
 
             if isinstance(item, tuple):
                 chunk_id, data = item
@@ -115,15 +113,9 @@ class AudioManager:
                 data = item
                 stream.write(data)
 
-            # 队列空了就立即关 stream，避免 underrun
-            if self._queue.empty():
-                stream.stop_stream()
-                stream.close()
-                stream = None
-
-        if stream is not None:
             stream.stop_stream()
             stream.close()
+
         pa.terminate()
 
 
