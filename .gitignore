@@ -26,7 +26,14 @@ __pycache__/
 *.pyc
 .python-version
 
+# 记忆
 memory/
-memory.md
 
+# 音频
 pulse
+
+# llm配置
+src/llm_tools/tool_config.json
+
+# .claude
+.claude

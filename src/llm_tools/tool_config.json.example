@@ -1,0 +1,18 @@
+{
+  "silent": [
+    "list_reminders",
+    "read_memory",
+    "get_yuqiao_power",
+    "save_memory",
+    "get_yuqiao_location",
+    "control_ac",
+    "control_tv",
+    "list_ac",
+    "get_volume",
+    "set_volume",
+    "get_tv_state",
+    "add_reminder",
+    "delete_reminder",
+    "get_weather"
+  ]
+}
