@@ -106,7 +106,7 @@ class VitsTTS:
 
         自动走缓存：相同文本只合成一次，后续直接读 WAV。
         """
-        cached = self._cache.get(text)
+        cached = self._cache.get(text, "vits")
         if cached is not None:
             audio, _sr = sf.read(str(cached), dtype="float32")
             return audio
@@ -135,7 +135,7 @@ class VitsTTS:
             )
         audio = np.clip(audio, -1.0, 1.0)
 
-        self._cache.save(text, audio, self.sample_rate)
+        self._cache.save(text, audio, self.sample_rate, "vits")
         return audio
 
     async def synthesize_async(self, text: str, length_scale: float = 1.0) -> np.ndarray:
