@@ -413,7 +413,33 @@ async def api_save_system_config(req: dict):
     return {"ok": True, "tts_backend": backend}
 
 
-# ---- SPA fallback（必须放在所有路由之后） ----
+# ---- TTS 缓存管理 ----
+
+@app.get("/api/tts-cache")
+async def api_cache_list(search: str = "", limit: int = 100):
+    return db.cache_list(search, limit)
+
+
+@app.get("/__cache_audio/{cache_id}")
+async def api_cache_audio(cache_id: int):
+    from fastapi.responses import FileResponse
+    items = db.cache_list(limit=1000)
+    for it in items:
+        if it["id"] == cache_id and os.path.isfile(it["audio_path"]):
+            return FileResponse(it["audio_path"], media_type="audio/wav")
+    raise HTTPException(404, "缓存文件不存在")
+
+
+@app.delete("/api/tts-cache/{cache_id}")
+async def api_cache_delete(cache_id: int):
+    db.cache_delete(cache_id)
+    return {"ok": True}
+
+
+@app.delete("/api/tts-cache")
+async def api_cache_clear():
+    db.cache_clear()
+    return {"ok": True}
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
     # API 和静态资源不走 fallback

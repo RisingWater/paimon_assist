@@ -55,6 +55,16 @@ def _connect() -> sqlite3.Connection:
             FOREIGN KEY (user_id) REFERENCES users(id)
         )
     """)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS tts_cache (
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
+            hash       TEXT    NOT NULL UNIQUE,
+            text       TEXT    NOT NULL,
+            audio_path TEXT    NOT NULL,
+            backend    TEXT    NOT NULL DEFAULT 'vits',
+            created_at TEXT    DEFAULT (datetime('now','localtime'))
+        )
+    """)
     conn.commit()
     return conn
 
@@ -437,3 +447,85 @@ def get_due_reminders() -> list[dict]:
                     due.append(r)
 
     return due
+
+# ============================================================
+# TTS 缓存操作
+# ============================================================
+
+def cache_get(text_hash: str) -> dict | None:
+    conn = _connect()
+    row = conn.execute(
+        "SELECT audio_path, backend FROM tts_cache WHERE hash=?", (text_hash,)
+    ).fetchone()
+    conn.close()
+    if row:
+        return {"audio_path": row[0], "backend": row[1]}
+    return None
+
+
+def cache_set(text_hash: str, text: str, audio_path: str, backend: str):
+    conn = _connect()
+    conn.execute(
+        "INSERT OR REPLACE INTO tts_cache (hash, text, audio_path, backend) VALUES (?, ?, ?, ?)",
+        (text_hash, text, audio_path, backend),
+    )
+    conn.commit()
+    conn.close()
+
+
+def cache_list(search: str = "", limit: int = 100) -> list[dict]:
+    conn = _connect()
+    if search:
+        rows = conn.execute(
+            "SELECT id, text, audio_path, backend, created_at FROM tts_cache "
+            "WHERE text LIKE ? ORDER BY created_at DESC LIMIT ?",
+            (f"%{search}%", limit),
+        ).fetchall()
+    else:
+        rows = conn.execute(
+            "SELECT id, text, audio_path, backend, created_at FROM tts_cache "
+            "ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    conn.close()
+    return [
+        {"id": r[0], "text": r[1], "audio_path": r[2], "backend": r[3], "created_at": r[4]}
+        for r in rows
+    ]
+
+
+def cache_delete(cache_id: int):
+    import os as _os2
+    conn = _connect()
+    row = conn.execute("SELECT audio_path FROM tts_cache WHERE id=?", (cache_id,)).fetchone()
+    if row:
+        try:
+            if _os2.path.isfile(row[0]):
+                _os2.remove(row[0])
+        except Exception:
+            pass
+    conn.execute("DELETE FROM tts_cache WHERE id=?", (cache_id,))
+    conn.commit()
+    conn.close()
+
+
+def cache_clear():
+    import os as _os2
+    conn = _connect()
+    rows = conn.execute("SELECT audio_path FROM tts_cache").fetchall()
+    for (path,) in rows:
+        try:
+            if _os2.path.isfile(path):
+                _os2.remove(path)
+        except Exception:
+            pass
+    conn.execute("DELETE FROM tts_cache")
+    conn.commit()
+    conn.close()
+
+
+def cache_count() -> int:
+    conn = _connect()
+    n = conn.execute("SELECT COUNT(*) FROM tts_cache").fetchone()[0]
+    conn.close()
+    return n

@@ -1,7 +1,9 @@
-"""TTS 缓存 — MD5 文本 → WAV 文件，避免重复合成"""
+"""TTS 缓存 — MD5 hash → DB + WAV 文件，避免重复合成"""
 import hashlib
 from pathlib import Path
 from typing import Optional
+
+import db
 
 
 class TTSCache:
@@ -14,13 +16,18 @@ class TTSCache:
 
     def get(self, text: str) -> Optional[Path]:
         """命中返回缓存路径，否则 None"""
-        path = self.cache_dir / f"{self._hash(text)}.wav"
-        return path if path.exists() else None
+        h = self._hash(text)
+        row = db.cache_get(h)
+        if row and Path(row["audio_path"]).is_file():
+            return Path(row["audio_path"])
+        return None
 
-    def save(self, text: str, audio: "np.ndarray", sample_rate: int) -> Path:
+    def save(self, text: str, audio: "np.ndarray", sample_rate: int, backend: str = "vits") -> Path:
         """合成后写入缓存，返回缓存路径"""
         import soundfile as sf
 
-        path = self.cache_dir / f"{self._hash(text)}.wav"
+        h = self._hash(text)
+        path = self.cache_dir / f"{h}.wav"
         sf.write(str(path), audio, sample_rate)
+        db.cache_set(h, text, str(path), backend)
         return path

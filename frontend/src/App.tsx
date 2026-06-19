@@ -8,6 +8,7 @@ import ChatTab from "./components/ChatTab"
 import ReminderTab from "./components/ReminderTab"
 import MemoryTab from "./components/MemoryTab"
 import SystemConfigModal from "./components/SystemConfigModal"
+import CacheTab from "./components/CacheTab"
 
 const { Header, Content } = Layout
 
@@ -55,6 +56,11 @@ export default function Root() {
       key: "memory",
       label: <span><BookOutlined /> 记忆管理</span>,
       children: <MemoryTab users={users} />,
+    },
+    {
+      key: "cache",
+      label: <span><AudioOutlined /> TTS 缓存</span>,
+      children: <CacheTab />,
     },
   ]
 
