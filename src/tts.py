@@ -1,67 +1,76 @@
-"""TTS 播报 — 根据 TTS_BACKEND 自动分发到 VITS 或 HTTP"""
+"""TTS 播报 — 根据 settings.json 自动分发到 VITS 或 HTTP"""
 import logging
 
 _log = logging.getLogger(__name__)
 
-_tts = None
-_speak_fn = None
-_wake_ack_fn = None
-_wake_ack_sync_fn = None
-_loaded = False
-
-
-def _ensure_loaded():
-    global _loaded, _tts, _speak_fn, _wake_ack_fn, _wake_ack_sync_fn
-    if _loaded:
-        return
-    _loaded = True
-    from vits_tts import tts as _vt, synthesize, speak as vs, wake_ack as va, wake_ack_sync as vas, load as vl
-    vl()
-    _tts = _vt
-    _speak_fn = vs
-    _wake_ack_fn = va
-    _wake_ack_sync_fn = vas
-    _log.info("TTS backend: vits loaded")
+_vits_loaded = False
+_http_loaded = False
 
 
 def _resolve():
-    """动态读取当前 TTS 后端"""
     import settings
     return settings.get("tts_backend")
 
 
+def _ensure_vits():
+    global _vits_loaded
+    if _vits_loaded:
+        return
+    from vits_tts import load as vl
+    vl()
+    _vits_loaded = True
+    _log.info("TTS backend: vits loaded")
+
+
+def _ensure_http():
+    global _http_loaded
+    if _http_loaded:
+        return
+    from tts_http import load as hl
+    hl()
+    _http_loaded = True
+    _log.info("TTS backend: http loaded")
+
+
 def speak(text: str):
     if _resolve() == "http":
-        from tts_http import speak as s; s(text); return
-    _ensure_loaded()
-    _speak_fn(text)
+        _ensure_http()
+        from tts_http import speak as s; s(text)
+    else:
+        _ensure_vits()
+        from vits_tts import speak as s; s(text)
 
 
 def wake_ack():
     if _resolve() == "http":
-        from tts_http import wake_ack as w; w(); return
-    _ensure_loaded()
-    _wake_ack_fn()
+        _ensure_http()
+        from tts_http import wake_ack as w; w()
+    else:
+        _ensure_vits()
+        from vits_tts import wake_ack as w; w()
 
 
 def wake_ack_sync():
     if _resolve() == "http":
-        from tts_http import wake_ack_sync as w; w(); return
-    _ensure_loaded()
-    _wake_ack_sync_fn()
+        _ensure_http()
+        from tts_http import wake_ack_sync as w; w()
+    else:
+        _ensure_vits()
+        from vits_tts import wake_ack_sync as w; w()
 
 
 def speak_sync(text: str):
     if _resolve() == "http":
-        from tts_http import speak_sync as s; s(text); return
-    _ensure_loaded()
-    # vits_tts 没有暴露 speak_sync，走 tts 对象
-    from vits_tts import tts
-    tts.speak_sync(text)
+        _ensure_http()
+        from tts_http import speak_sync as s; s(text)
+    else:
+        _ensure_vits()
+        from vits_tts import tts
+        tts.speak_sync(text)
 
 
 def load():
     if _resolve() == "http":
-        from tts_http import load as l; l()
+        _ensure_http()
     else:
-        _ensure_loaded()
+        _ensure_vits()
