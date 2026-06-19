@@ -214,6 +214,7 @@ synthesize = _tts.synthesize
 synthesize_async = _tts.synthesize_async
 speak = _tts.speak
 wake_ack = _tts.wake_ack
+wake_ack_sync = _tts.wake_ack_sync
 tts = _tts  # 也可作为 tts.load() / tts.speak() 使用
 
 # ============================================================
