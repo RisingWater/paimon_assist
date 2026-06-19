@@ -203,12 +203,13 @@ class VitsTTS:
 # ============================================================
 if __name__ == "__main__":
     import sys
+    from pathlib import Path
 
     text = sys.argv[1] if len(sys.argv) > 1 else "你好，我是派萌，今天天气真不错呢！"
+    t = VitsTTS("models/paimon.pth", "models/paimon_config.json", Path("models/tts_cache"))
     print(f"加载模型 + 合成: 「{text}」")
-    _tts.load()
-    audio = _tts.synthesize(text)
-    sr = _tts._hps.data.sampling_rate if _tts._hps else SAMPLE_RATE
-    print(f"合成完成，时长 {len(audio) / sr:.1f}s，开始播放…")
-    _tts._play(audio)
+    t.load()
+    audio = t.synthesize(text)
+    print(f"合成完成，时长 {len(audio) / t.sample_rate:.1f}s，开始播放…")
+    t._play(audio)
     print("播放完毕")
