@@ -3,7 +3,7 @@ import logging
 import os
 import time
 import wave
-import audio_manager
+from tts import audio_manager
 from config import MAX_RECORD_SECONDS, VAD_SILENCE_MS
 
 _log = logging.getLogger(__name__)

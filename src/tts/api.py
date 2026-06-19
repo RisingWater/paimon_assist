@@ -9,7 +9,7 @@ from pydantic import BaseModel, Field
 
 from config import TTS_CACHE_DIR
 import tts as _tts_mod
-import audio_manager
+from tts import audio_manager
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ async def text_to_speech(req: TTSRequest):
     # 用当前 TTS 后端合成
     import soundfile as sf
     from pathlib import Path
-    from tts_cache import TTSCache
+    from tts.cache import TTSCache
     cache = TTSCache(Path(TTS_CACHE_DIR))
 
     backend = _tts_mod._backend()

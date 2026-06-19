@@ -2,8 +2,8 @@
 import logging
 from pathlib import Path
 
-from vits_tts import VitsTTS
-from tts_http import HttpTTS
+from tts.vits_tts import VitsTTS
+from tts.tts_http import HttpTTS
 
 _log = logging.getLogger(__name__)
 

@@ -24,8 +24,8 @@ from vits.models import SynthesizerTrn
 from vits.text import text_to_sequence
 from vits.text.symbols import symbols
 
-from tts_cache import TTSCache
-import audio_manager
+from tts.cache import TTSCache
+from tts import audio_manager
 
 
 def _load_config(config_path: str) -> dict:

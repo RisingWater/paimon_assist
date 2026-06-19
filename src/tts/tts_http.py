@@ -6,10 +6,10 @@ from pathlib import Path
 import numpy as np
 import requests
 import soundfile as sf
-import audio_manager
+from tts import audio_manager
 
 from config import TTS_URL, TTS_CACHE_DIR
-from tts_cache import TTSCache
+from tts.cache import TTSCache
 
 _log = logging.getLogger(__name__)
 

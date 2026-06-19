@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import time
 import db
-import tts_api
+from tts import api as tts_api
 from fastapi import FastAPI, HTTPException, Query, UploadFile, File
 from fastapi.responses import FileResponse
 from pydantic import BaseModel

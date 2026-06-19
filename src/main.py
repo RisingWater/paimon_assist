@@ -42,7 +42,7 @@ import vad
 import voiceprint
 from stt import stt
 import llm
-import audio_manager
+from tts import audio_manager
 import reminder_thread
 
 
