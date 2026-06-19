@@ -101,22 +101,18 @@ class VitsTTS:
 
     # ---- 合成 ----
 
-    def synthesize(self, text: str, length_scale: float = 1.0) -> np.ndarray:
-        """将文本合成为音频 numpy 数组 (float32, [-1, 1])
-
-        自动走缓存：相同文本只合成一次，后续直接读 WAV。
-        """
+    def synthesize(self, text: str, length_scale: float = 1.0) -> tuple[np.ndarray, int]:
+        """合成，返回 (audio, sample_rate)"""
         cached = self._cache.get(text, "vits")
         if cached is not None:
-            audio, _sr = sf.read(str(cached), dtype="float32")
-            return audio
+            return sf.read(str(cached), dtype="float32")
 
         if self._model is None:
             self.load()
 
         stn_tst = _get_text(text, self._hps)
         if stn_tst.numel() == 0:
-            return np.zeros(self._hps.data.sampling_rate // 2, dtype=np.float32)
+            return np.zeros(self._hps.data.sampling_rate // 2, dtype=np.float32), self.sample_rate
 
         with torch.no_grad():
             x_tst = stn_tst.unsqueeze(0).to(self._device)
@@ -136,10 +132,10 @@ class VitsTTS:
         audio = np.clip(audio, -1.0, 1.0)
 
         self._cache.save(text, audio, self.sample_rate, "vits")
-        return audio
+        return audio, self.sample_rate
 
-    async def synthesize_async(self, text: str, length_scale: float = 1.0) -> np.ndarray:
-        """异步版 synthesize，在线程池中运行 CPU 推理，不阻塞事件循环"""
+    async def synthesize_async(self, text: str, length_scale: float = 1.0):
+        """异步版 synthesize"""
         return await asyncio.to_thread(self.synthesize, text, length_scale)
 
     # ---- 播放 ----
@@ -147,9 +143,8 @@ class VitsTTS:
     def speak(self, text: str):
         """合成并播放（异步，入队即返回）"""
         def _run():
-            audio = self.synthesize(text)
-            audio_manager.init()
-            audio_manager.get().play_async(audio)
+            audio, sr = self.synthesize(text)
+            audio_manager.get().play_async(audio, sr)
         threading.Thread(target=_run, daemon=True).start()
 
     def speak_sync(self, text: str):
@@ -173,16 +168,16 @@ class VitsTTS:
             i += 1
 
         if len(merged) == 1:
-            audio_manager.get().play_sync(self.synthesize(merged[0]))
+            audio, sr = self.synthesize(merged[0]); audio_manager.get().play_sync(audio, sr)
             return
 
         mgr = audio_manager.get()
         for i, s in enumerate(merged[:-1]):
             _log.info("[TTS %d/%d start] %s", i + 1, len(merged), s)
-            mgr.play_async(self.synthesize(s))
+            audio, sr = self.synthesize(s); mgr.play_async(audio, sr)
         last = merged[-1]
         _log.info("[TTS %d/%d start] %s", len(merged), len(merged), last)
-        mgr.play_sync(self.synthesize(last))
+        audio, sr = self.synthesize(last); mgr.play_sync(audio, sr)
 
     def _play(self, audio: np.ndarray):
         """通过音频管理器播放（同步：阻塞到播完）"""
@@ -209,7 +204,7 @@ if __name__ == "__main__":
     t = VitsTTS("models/paimon.pth", "models/paimon_config.json", Path("models/tts_cache"))
     print(f"加载模型 + 合成: 「{text}」")
     t.load()
-    audio = t.synthesize(text)
-    print(f"合成完成，时长 {len(audio) / t.sample_rate:.1f}s，开始播放…")
+    audio, sr = t.synthesize(text)
+    print(f"合成完成，时长 {len(audio) / sr:.1f}s，开始播放…")
     t._play(audio)
     print("播放完毕")

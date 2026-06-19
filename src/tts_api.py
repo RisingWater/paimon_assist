@@ -53,9 +53,7 @@ async def text_to_speech(req: TTSRequest):
 
     logger.info(f"TTS synthesize ({backend}): {text[:30]}...")
     try:
-        tts_obj = _tts_mod._get()
-        result = await asyncio.to_thread(tts_obj.synthesize, text, req.length_scale)
-        audio, result_sr = result if isinstance(result, tuple) else (result, getattr(tts_obj, "sample_rate", 22050))
+        audio, result_sr = await asyncio.to_thread(_tts_mod._get().synthesize, text, req.length_scale)
     except Exception as e:
         logger.error(f"TTS synthesis failed: {e}")
         raise HTTPException(status_code=500, detail=f"语音合成失败: {e}")
