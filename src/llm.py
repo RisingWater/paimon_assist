@@ -2,17 +2,20 @@
 import json
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 import requests
 import threading
 from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL, DEFAULT_CITY
 import db
 import llm_tools
+import llm_tools.memory as _mem_mod
+from llm_tools import get_memory_value
+from vits_tts import tts as _tts_module
+import settings
 
 _log = logging.getLogger(__name__)
 
 def _load_silent_tools() -> set[str]:
-    import settings
     return settings.get_silent_tools()
 
 _DEFAULT_RULES_PREFIX = (
@@ -52,7 +55,6 @@ def _build_system() -> dict:
     now = datetime.now().strftime("现在是%Y年%m月%d日 %A %H:%M。")
     content = now + _DEFAULT_RULES_PREFIX
     # 附加长期记忆摘要（动态读取，避免 import 缓存旧值）
-    import llm_tools.memory as _mem_mod
     if _mem_mod.memory_summary:
         content += f"\n[长期记忆] {_mem_mod.memory_summary}"
     return {"role": "system", "content": content}
@@ -67,14 +69,12 @@ def _get_history(user_id: int) -> list[dict]:
         return [system]
 
     # 只取最近 5 分钟的消息
-    from datetime import datetime as _dt, timedelta as _td
-    cutoff = (_dt.now() - _td(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+    cutoff = (datetime.now() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
     rows = [r for r in rows if r.get("created_at", "") >= cutoff]
 
     messages = [system]
 
     # 附加中期记忆摘要（动态读取，避免 import 缓存旧值）
-    import llm_tools.memory as _mem_mod
     mid = _mem_mod.get_midterm_summary(user_id)
     if mid:
         messages.append({"role": "system", "content": f"[近期回顾] {mid}"})
@@ -97,8 +97,6 @@ def _get_history(user_id: int) -> list[dict]:
 
 def _log_to_midterm(user_id: int, tool_calls_during_chat: list[str], user_text: str, reply: str):
     """规则：如果本轮对话沾了 memory_value=0 的 tool，整轮不进中期记忆"""
-    from llm_tools import get_memory_value
-
     if user_id <= 0:
         return
     for name in tool_calls_during_chat:
@@ -106,9 +104,8 @@ def _log_to_midterm(user_id: int, tool_calls_during_chat: list[str], user_text: 
             return  # 有低价值 tool → 整轮丢弃
 
     # 纯聊天或高价值 tool → 记入中期记忆
-    import llm_tools.memory as _mem
     ts = datetime.now().strftime("%m-%d %H:%M")
-    _mem.append_to_midterm(user_id, f"[{ts}] 问：{user_text} | 答：{reply[:200]}")
+    _mem_mod.append_to_midterm(user_id, f"[{ts}] 问：{user_text} | 答：{reply[:200]}")
 
 
 def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
@@ -191,8 +188,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 )
                 if should_play:
                     try:
-                        from vits_tts import tts as _tts
-                        _tts.speak(tool_prefix)
+                        _tts_module.speak(tool_prefix)
                     except Exception:
                         pass
                 tool_prefix = ""  # 只处理一次

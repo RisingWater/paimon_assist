@@ -11,6 +11,7 @@ import queue
 import threading
 import numpy as np
 import pyaudio
+from silero_vad import load_silero_vad, get_speech_timestamps
 
 _log = logging.getLogger(__name__)
 
@@ -49,8 +50,6 @@ class AudioManager:
 
     def record(self, timeout_sec: int, silence_ms: int = 800) -> np.ndarray:
         """录音，静音自动停止，返回 (audio, sample_rate)"""
-        from silero_vad import load_silero_vad, get_speech_timestamps
-
         pa = pyaudio.PyAudio()
         stream = pa.open(
             format=pyaudio.paInt16, channels=1,

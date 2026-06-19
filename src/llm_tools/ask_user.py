@@ -1,6 +1,9 @@
 """反问用户工具 — 信息不足时向用户提问"""
 import logging
 from llm_tools import register
+from vits_tts import tts as _tts_ask
+import vad
+from stt import stt
 
 _log = logging.getLogger(__name__)
 
@@ -33,15 +36,12 @@ def ask_question_to_user(args: dict) -> str:
 
     try:
         # 1. 播放问题
-        from vits_tts import tts as _tts
-        _tts.speak_sync(question)
+        _tts_ask.speak_sync(question)
 
         # 2. 录音
-        import vad
-        filename = vad.record(999)  # counter=999 标记为反问录音
+        filename = vad.record(999)
 
         # 3. STT
-        from stt import stt
         text = stt.transcribe(filename)
         if not text.strip():
             return "用户无回复"

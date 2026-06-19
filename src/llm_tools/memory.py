@@ -1,6 +1,7 @@
 """长期记忆工具 — 读写 memory.md"""
 import logging
 import os
+import re
 import threading
 from llm_tools import register
 
@@ -54,8 +55,6 @@ def rebuild_summary_async():
         if not lines:
             return
 
-        from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
-        import requests
 
         prompt = (
             "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键关系：\n"
@@ -126,7 +125,6 @@ def read_memory(args: dict = {}) -> str:
     # 如果有对应用户，查中期记忆
     name = (args or {}).get("question_about", "")
     if name:
-        import db as _db
         users = _db.list_users()
         for u in users:
             if u["name"] == name:
@@ -265,8 +263,6 @@ def rebuild_midterm_llm(user_id: int):
         return
 
     try:
-        from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL
-        import requests
         prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键信息：\n" + "\n".join(facts)
         resp = requests.post(
             DEEPSEEK_URL,
@@ -312,8 +308,6 @@ _midterm_check_running = False
 def _midterm_periodic_check():
     """每 5 分钟检查：扫描 memory/ 目录，对变化的中期记忆文件用 LLM 重建摘要"""
     global _midterm_check_running, _midterm_mtimes
-    import time as _time
-    import re as _re
     while True:
         _time.sleep(300)
         try:
