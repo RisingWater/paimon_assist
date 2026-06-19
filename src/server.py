@@ -442,8 +442,9 @@ async def api_cache_clear():
     return {"ok": True}
 # ---- 备份/恢复 ----
 
-@app.post("/api/backup")
-async def api_backup():
+_BACKUP_DIR = "backups"
+
+def _create_zip() -> bytes:
     import zipfile, io
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
@@ -455,18 +456,57 @@ async def api_backup():
                     for f in files:
                         zf.write(os.path.join(root, f))
     buf.seek(0)
-    from fastapi.responses import StreamingResponse
-    return StreamingResponse(buf, media_type="application/zip",
-        headers={"Content-Disposition": "attachment; filename=paimon_backup.zip"})
+    return buf.read()
 
 
-@app.post("/api/restore")
-async def api_restore(file: UploadFile = File(...)):
+@app.post("/api/backup")
+async def api_create_backup():
+    os.makedirs(_BACKUP_DIR, exist_ok=True)
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    filename = f"paimon_{ts}.zip"
+    with open(os.path.join(_BACKUP_DIR, filename), "wb") as f:
+        f.write(_create_zip())
+    return {"ok": True, "filename": filename}
+
+
+@app.get("/api/backups")
+async def api_list_backups():
+    if not os.path.isdir(_BACKUP_DIR):
+        return []
+    files = sorted(
+        [f for f in os.listdir(_BACKUP_DIR) if f.endswith(".zip")],
+        reverse=True,
+    )
+    return [{"filename": f, "size": os.path.getsize(os.path.join(_BACKUP_DIR, f))} for f in files]
+
+
+@app.get("/api/backups/{filename}")
+async def api_download_backup(filename: str):
+    path = os.path.join(_BACKUP_DIR, filename)
+    if not os.path.isfile(path):
+        raise HTTPException(404, "备份不存在")
+    return FileResponse(path, media_type="application/zip",
+        filename=filename)
+
+
+@app.post("/api/backups/upload")
+async def api_upload_backup(file: UploadFile = File(...)):
+    os.makedirs(_BACKUP_DIR, exist_ok=True)
+    fname = file.filename or f"upload_{int(time.time())}.zip"
+    with open(os.path.join(_BACKUP_DIR, fname), "wb") as f:
+        f.write(await file.read())
+    return {"ok": True, "filename": fname}
+
+
+@app.post("/api/backups/{filename}/restore")
+async def api_restore_backup(filename: str):
     import zipfile, io
-    content = await file.read()
-    with zipfile.ZipFile(io.BytesIO(content)) as zf:
+    path = os.path.join(_BACKUP_DIR, filename)
+    if not os.path.isfile(path):
+        raise HTTPException(404, "备份不存在")
+    with zipfile.ZipFile(path) as zf:
         zf.extractall(".")
-    return {"ok": True, "message": "已恢复，重启生效"}
+    return {"ok": True, "message": f"已从 {filename} 恢复，重启生效"}
 
 
 @app.get("/{path:path}")

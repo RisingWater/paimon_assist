@@ -9,6 +9,7 @@ models/iic/
 
 # 数据库（首次运行自动生成）
 db/
+backups/
 
 # TTS 缓存（自动生成，避免重复合成）
 models/tts_cache/
