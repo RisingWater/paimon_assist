@@ -10,7 +10,7 @@ import db
 import llm_tools
 import llm_tools.memory as _mem_mod
 from llm_tools import get_memory_value
-from vits_tts import tts as _tts_module
+import tts as _tts_mod
 import settings
 
 _log = logging.getLogger(__name__)
@@ -188,7 +188,7 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 )
                 if should_play:
                     try:
-                        _tts_module.speak(tool_prefix)
+                        _tts_mod.speak(tool_prefix)
                     except Exception:
                         pass
                 tool_prefix = ""  # 只处理一次

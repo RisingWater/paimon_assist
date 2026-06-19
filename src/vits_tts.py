@@ -199,25 +199,6 @@ class VitsTTS:
 
 
 # ============================================================
-# 模块级单例（向后兼容）
-# ============================================================
-
-_tts = VitsTTS(
-    checkpoint="models/paimon.pth",
-    config="models/paimon_config.json",
-    cache_dir=Path("models/tts_cache"),
-)
-
-SAMPLE_RATE = _tts.sample_rate
-load = _tts.load
-synthesize = _tts.synthesize
-synthesize_async = _tts.synthesize_async
-speak = _tts.speak
-wake_ack = _tts.wake_ack
-wake_ack_sync = _tts.wake_ack_sync
-tts = _tts  # 也可作为 tts.load() / tts.speak() 使用
-
-# ============================================================
 # 单元测试入口
 # ============================================================
 if __name__ == "__main__":

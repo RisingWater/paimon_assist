@@ -1,9 +1,18 @@
-"""TTS 播报 — 根据 settings.json 自动分发到 VITS 或 HTTP"""
+"""TTS 工厂 — 根据 settings.json 分发到 VITS 或 HTTP"""
 import logging
-from vits_tts import tts as _vits, speak as _vs, wake_ack as _va, wake_ack_sync as _vas, load as _vl
-from tts_http import speak as _hs, wake_ack as _ha, wake_ack_sync as _has, load as _hl
+from pathlib import Path
+
+from vits_tts import VitsTTS
+from tts_http import HttpTTS
 
 _log = logging.getLogger(__name__)
+
+_vits = VitsTTS(
+    checkpoint="models/paimon.pth",
+    config="models/paimon_config.json",
+    cache_dir=Path("models/tts_cache"),
+)
+_http = HttpTTS()
 
 
 def _backend():
@@ -11,26 +20,26 @@ def _backend():
     return settings.get("tts_backend")
 
 
+def _get():
+    return _http if _backend() == "http" else _vits
+
+
 def load():
-    _vl()
-    _hl()
-    _log.info("Both TTS backends loaded")
+    _vits.load()
+    _http.load()
 
 
 def speak(text: str):
-    _hs(text) if _backend() == "http" else _vs(text)
+    _get().speak(text)
 
 
 def wake_ack():
-    _ha() if _backend() == "http" else _va()
+    _get().wake_ack()
 
 
 def wake_ack_sync():
-    _has() if _backend() == "http" else _vas()
+    _get().wake_ack_sync()
 
 
 def speak_sync(text: str):
-    if _backend() == "http":
-        _hs(text)
-    else:
-        _vits.speak_sync(text)
+    _get().speak_sync(text)

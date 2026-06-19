@@ -1,7 +1,7 @@
 """反问用户工具 — 信息不足时向用户提问"""
 import logging
 from llm_tools import register
-from vits_tts import tts as _tts_ask
+import tts
 import vad
 from stt import stt
 
@@ -36,7 +36,7 @@ def ask_question_to_user(args: dict) -> str:
 
     try:
         # 1. 播放问题
-        _tts_ask.speak_sync(question)
+        tts.speak_sync(question)
 
         # 2. 录音
         filename = vad.record(999)

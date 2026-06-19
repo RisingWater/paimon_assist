@@ -3,6 +3,7 @@ import asyncio
 import logging
 import time
 import threading
+import tts
 
 _log = logging.getLogger(__name__)
 
@@ -44,8 +45,7 @@ def _check_and_notify():
         _log.info("Reminder LLM reply: %s", reply[:100] if reply else "(empty)")
         if reply:
             try:
-                from vits_tts import tts as _tts
-                _tts.speak_sync(reply)
+                tts.speak_sync(reply)
             except Exception:
                 pass
         if r["rtype"] == "once":

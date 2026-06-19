@@ -1,4 +1,4 @@
-"""HTTP TTS 后端 — 调用外部 EasyVoice API 获取 WAV"""
+"""HTTP TTS 后端 — 调用外部 EasyVoice API"""
 import logging
 import threading
 from pathlib import Path
@@ -13,47 +13,37 @@ from tts_cache import TTSCache
 
 _log = logging.getLogger(__name__)
 
-_cache = TTSCache(Path(TTS_CACHE_DIR))
 
+class HttpTTS:
+    def __init__(self):
+        self.cache = TTSCache(Path(TTS_CACHE_DIR))
 
-def _synthesize(text: str) -> tuple[np.ndarray, int]:
-    """调用 HTTP API 合成（带缓存），返回 (audio, sr)"""
-    cached = _cache.get(text, "http")
-    if cached is not None:
-        audio, sr = sf.read(str(cached), dtype="float32")
+    def load(self):
+        _log.info("HTTP TTS ready: %s", TTS_URL)
+
+    def synthesize(self, text: str) -> tuple[np.ndarray, int]:
+        cached = self.cache.get(text, "http")
+        if cached is not None:
+            return sf.read(str(cached), dtype="float32")
+        resp = requests.post(TTS_URL, json={"text": text, "play": False}, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        audio, sr = sf.read(data["file"], dtype="float32")
+        self.cache.save(text, audio, sr, "http")
         return audio, sr
 
-    resp = requests.post(
-        TTS_URL,
-        json={"text": text, "play": False},
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    audio, sr = sf.read(data["file"], dtype="float32")
-    _cache.save(text, audio, sr, "http")
-    return audio, sr
+    def speak(self, text: str):
+        def _run():
+            audio, sr = self.synthesize(text)
+            audio_manager.get().play_async(audio, sr)
+        threading.Thread(target=_run, daemon=True).start()
 
+    def speak_sync(self, text: str):
+        audio, sr = self.synthesize(text)
+        audio_manager.get().play_sync(audio, sr)
 
-def speak(text: str):
-    def _run():
-        audio, sr = _synthesize(text)
-        audio_manager.get().play_async(audio, sr)
-    threading.Thread(target=_run, daemon=True).start()
+    def wake_ack(self):
+        self.speak("我在呢")
 
-
-def speak_sync(text: str):
-    audio, sr = _synthesize(text)
-    audio_manager.get().play_sync(audio, sr)
-
-
-def wake_ack():
-    speak("我在呢")
-
-
-def wake_ack_sync():
-    speak_sync("我在呢")
-
-
-def load():
-    _log.info("HTTP TTS backend ready: %s", TTS_URL)
+    def wake_ack_sync(self):
+        self.speak_sync("我在呢")
