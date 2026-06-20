@@ -84,7 +84,7 @@ export default function Root() {
 
   return (
     <Layout style={{ minHeight: "100vh", background: "#f5f5f5" }}>
-      <Header style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "0 32px" }}>
+      <Header style={{ display: "flex", alignItems: "center", gap: 16, background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "0 40px" }}>
         <Typography.Title level={4} style={{ color: "#1677ff", margin: 0, whiteSpace: "nowrap" }}>
           派萌助手
         </Typography.Title>
@@ -92,7 +92,7 @@ export default function Root() {
         <div style={{ flex: 1 }} />
         <Button type="text" icon={<SettingOutlined />} onClick={() => setCfgOpen(true)} />
       </Header>
-      <Content style={{ maxWidth: 960, width: "100%", margin: "24px auto", padding: "0 20px" }}>
+      <Content style={{ maxWidth: 1200, width: "100%", margin: "24px auto", padding: "0 20px" }}>
         <Tabs defaultActiveKey="users" items={tabs} />
       </Content>
       <SystemConfigModal open={cfgOpen} onClose={() => setCfgOpen(false)} />
