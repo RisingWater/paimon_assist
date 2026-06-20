@@ -375,8 +375,16 @@ _tts_backend = _settings_mod.get("tts_backend")
 
 @app.get("/api/tool-config")
 async def api_get_tool_config():
-    from llm_tools import get_schemas
-    tools = [{"name": s["function"]["name"], "description": s["function"]["description"]} for s in get_schemas()]
+    from llm_tools import get_schemas, get_default_silent_tools
+    default_silent = get_default_silent_tools()
+    tools = []
+    for s in get_schemas():
+        name = s["function"]["name"]
+        tools.append({
+            "name": name,
+            "description": s["function"]["description"],
+            "silent_default": name in default_silent,
+        })
     return {"tools": tools, "silent": list(_settings_mod.get_silent_tools())}
 
 

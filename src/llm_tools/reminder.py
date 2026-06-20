@@ -42,7 +42,7 @@ def add_reminder(args: dict) -> str:
         return f"添加提醒失败：{e}"
 
 
-@register(memory_value=1,
+@register(memory_value=1, silent=True,
     name="list_reminders",
     description="列出所有未完成的定时提醒。",
     parameters={"type": "object", "properties": {}, "required": []},
@@ -65,7 +65,7 @@ def list_reminders(_args: dict = {}) -> str:
         return f"查询失败：{e}"
 
 
-@register(memory_value=1,
+@register(memory_value=1, silent=True,
     name="delete_reminder",
     description="删除一个定时提醒。",
     parameters={

@@ -80,7 +80,7 @@ def _fmt_ac(ac: dict) -> str:
 # ============================================================
 
 
-@register(memory_value=0,
+@register(memory_value=0, silent=True,
     name="list_ac",
     description="列出家中所有空调的名称、当前状态（开关/模式）和设定温度。",
     parameters={"type": "object", "properties": {}, "required": []},
@@ -95,7 +95,7 @@ def list_ac(_args: dict = {}) -> str:
         return f"查询空调失败：{e}"
 
 
-@register(memory_value=0,
+@register(memory_value=0, silent=True,
     name="control_ac",
     description=(
         "控制指定的空调。必须先调 list_ac 获取空调名称。"

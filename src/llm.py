@@ -16,7 +16,8 @@ import settings
 _log = logging.getLogger(__name__)
 
 def _load_silent_tools() -> set[str]:
-    return settings.get_silent_tools()
+    """静默工具 = 工具自身声明 + 用户 settings 额外配置"""
+    return llm_tools.get_default_silent_tools() | settings.get_silent_tools()
 
 _DEFAULT_RULES_PREFIX = (
     "你是派萌，一个可爱的AI助手。你的回答会通过语音播放给用户听。"

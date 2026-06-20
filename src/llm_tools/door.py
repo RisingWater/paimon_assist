@@ -8,6 +8,7 @@ _log = logging.getLogger(__name__)
 
 
 @register(
+    memory_value=0, silent=True,
     name="open_door",
     description="打开楼下门禁。调用后会自动打开单元楼的楼下门禁。",
     parameters={
@@ -15,7 +16,6 @@ _log = logging.getLogger(__name__)
         "properties": {},
         "required": [],
     },
-    memory_value=0,
 )
 def open_door(_args: dict = {}) -> str:
     """打开楼下门禁"""

@@ -8,10 +8,7 @@ _log = logging.getLogger(__name__)
 _FILE = os.path.join(os.path.dirname(__file__), "..", "settings", "settings.json")
 _DEFAULTS = {
     "tts_backend": "vits",
-    "silent_tools": [
-        "read_memory", "save_memory", "list_ac", "get_tv_state",
-        "list_reminders", "get_volume", "set_volume",
-    ],
+    "silent_tools": [],
 }
 
 

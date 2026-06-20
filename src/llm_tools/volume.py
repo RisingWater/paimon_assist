@@ -19,7 +19,7 @@ def _get_volume() -> int:
     return int(m.group(1)) if m else 50
 
 
-@register(memory_value=0,
+@register(memory_value=0, silent=True,
     name="get_volume",
     description="获取当前扬声器音量百分比。",
     parameters={"type": "object", "properties": {}, "required": []},
@@ -32,7 +32,7 @@ def get_volume(_args: dict = {}) -> str:
         return f"获取音量失败：{e}"
 
 
-@register(memory_value=0,
+@register(memory_value=0, silent=True,
     name="set_volume",
     description="设置扬声器音量。参数为百分比数字，如 50 表示 50%。",
     parameters={

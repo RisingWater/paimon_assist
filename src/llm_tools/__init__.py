@@ -2,7 +2,7 @@
 
 from typing import Any, Callable
 
-# tool_name → {schema, handler}
+# tool_name → {schema, handler, memory_value, silent}
 _registry: dict[str, dict] = {}
 
 
@@ -11,12 +11,14 @@ def register(
     description: str,
     parameters: dict,
     memory_value: int = 0,
+    silent: bool = False,
 ):
     """装饰器：注册一个 tool。
 
     Args:
         memory_value: 0=无记忆价值(开关/查询), 1-3=低(提醒CRUD),
                       4-6=中(天气/定位), 7-10=高(搜索/记忆)
+        silent: True=调用时不播 TTS 提示语（开关/查询类工具）
     """
 
     def decorator(fn: Callable[[dict], str]):
@@ -31,6 +33,7 @@ def register(
             },
             "handler": fn,
             "memory_value": memory_value,
+            "silent": silent,
         }
         return fn
 
@@ -41,6 +44,11 @@ def get_memory_value(name: str) -> int:
     """返回工具的长期记忆价值（0-10）"""
     t = _registry.get(name)
     return t["memory_value"] if t else 0
+
+
+def get_default_silent_tools() -> set[str]:
+    """返回所有 silent=True 的工具名（工具自身声明）"""
+    return {name for name, t in _registry.items() if t.get("silent")}
 
 
 def get_schemas() -> list[dict]:

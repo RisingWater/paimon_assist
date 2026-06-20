@@ -95,7 +95,7 @@ def rebuild_summary_async():
 _rebuild_summary_simple()
 
 
-@register(memory_value=0,
+@register(memory_value=0, silent=True,
     name="read_memory",
     description=(
         "读取长期+中期记忆，获取已知的用户偏好、身份、房间归属等信息。"
@@ -137,7 +137,7 @@ def read_memory(args: dict = {}) -> str:
     return "\n".join(parts) if parts else "（暂无记忆）"
 
 
-@register(memory_value=10,
+@register(memory_value=10, silent=True,
     name="save_memory",
     description=(
         "向长期记忆文件追加一条新信息。当了解到用户的新偏好、身份、房间设备归属等时使用。"
