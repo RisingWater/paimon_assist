@@ -35,6 +35,10 @@ QB_LOCATION_AUTHORITY = os.getenv("QB_LOCATION_AUTHORITY", "")
 QB_LOCATION_USERNAME = os.getenv("QB_LOCATION_USERNAME", "")
 QB_LOCATION_PASSWORD = os.getenv("QB_LOCATION_PASSWORD", "")
 
+# --- 门禁 ---
+DOOR_OPEN_URL = os.getenv("DOOR_OPEN_URL", "")
+DOOR_OPEN_TOKEN = os.getenv("DOOR_OPEN_TOKEN", "")
+
 # --- FunASR ---
 DISABLE_UPDATE = os.getenv("DISABLE_UPDATE", "0") == "1"
 
