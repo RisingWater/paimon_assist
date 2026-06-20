@@ -496,6 +496,47 @@ async def api_restore_backup(filename: str):
     return {"ok": True, "message": f"已从 {filename} 恢复，重启生效"}
 
 
+# ---- 日志查看 ----
+
+from fastapi.responses import PlainTextResponse
+import log_manager as _log_mgr
+
+
+@app.get("/api/logs")
+async def api_get_logs(
+    level: str = "",
+    search: str = "",
+    limit: int = 200,
+    offset: int = 0,
+):
+    """查询内存日志，支持级别过滤、关键词搜索、分页"""
+    return _log_mgr.get_logs(
+        level=level or None,
+        search=search or None,
+        limit=min(limit, 1000),
+        offset=offset,
+    )
+
+
+@app.get("/api/logs/export")
+async def api_export_logs():
+    """导出全部日志为纯文本文件"""
+    text = _log_mgr.export_text()
+    ts = time.strftime("%Y%m%d_%H%M%S")
+    return PlainTextResponse(
+        text,
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": f"attachment; filename=paimon_logs_{ts}.txt"},
+    )
+
+
+@app.delete("/api/logs")
+async def api_clear_logs():
+    """清空内存日志"""
+    _log_mgr.clear()
+    return {"ok": True}
+
+
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
     # API 和静态资源不走 fallback

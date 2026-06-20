@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Layout, Tabs, Typography, App, Button } from "antd"
-import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined, SaveOutlined } from "@ant-design/icons"
+import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined, SaveOutlined, FileTextOutlined } from "@ant-design/icons"
 import { api, type User } from "./api"
 import UserTab from "./components/UserTab"
 import VoiceprintTab from "./components/VoiceprintTab"
@@ -10,6 +10,7 @@ import MemoryTab from "./components/MemoryTab"
 import SystemConfigModal from "./components/SystemConfigModal"
 import CacheTab from "./components/CacheTab"
 import BackupTab from "./components/BackupTab"
+import LogTab from "./components/LogTab"
 
 const { Header, Content } = Layout
 
@@ -67,6 +68,11 @@ export default function Root() {
       key: "backup",
       label: <span><SaveOutlined /> 备份恢复</span>,
       children: <BackupTab />,
+    },
+    {
+      key: "logs",
+      label: <span><FileTextOutlined /> 系统日志</span>,
+      children: <LogTab />,
     },
   ]
 

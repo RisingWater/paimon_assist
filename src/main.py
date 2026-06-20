@@ -29,6 +29,10 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
+# ---- 日志内存缓冲（Web UI 查看用） ----
+import log_manager
+log_manager.setup()
+
 # ---- 标准库 & 业务模块 ----
 import asyncio
 import threading

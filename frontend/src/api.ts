@@ -123,6 +123,21 @@ export const api = {
 
   deleteReminder: (id: number) =>
     fetch(`${BASE}/reminders/${id}`, { method: "DELETE" }),
+
+  // Logs
+  getLogs: (params?: { level?: string; search?: string; limit?: number; offset?: number }): Promise<LogResult> => {
+    const qs = new URLSearchParams()
+    if (params?.level) qs.set("level", params.level)
+    if (params?.search) qs.set("search", params.search)
+    if (params?.limit) qs.set("limit", String(params.limit))
+    if (params?.offset) qs.set("offset", String(params.offset))
+    return fetch(`${BASE}/logs?${qs.toString()}`).then((r) => r.json())
+  },
+
+  clearLogs: (): Promise<{ ok: boolean }> =>
+    fetch(`${BASE}/logs`, { method: "DELETE" }).then((r) => r.json()),
+
+  exportLogsUrl: (): string => `${BASE}/logs/export`,
 }
 
 export interface Reminder {
@@ -134,4 +149,17 @@ export interface Reminder {
   lunar: boolean
   done: boolean
   created_at: string
+}
+
+export interface LogEntry {
+  id: number
+  time: string
+  level: string
+  name: string
+  message: string
+}
+
+export interface LogResult {
+  total: number
+  logs: LogEntry[]
 }
