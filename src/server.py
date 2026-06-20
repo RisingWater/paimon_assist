@@ -15,30 +15,15 @@ app.include_router(tts_api.router)
 PAGE_SIZE = 20
 
 # ---- SPA 静态文件 ----
-import os as _os
 from fastapi.staticfiles import StaticFiles
 
 _FRONTEND_DIST = "frontend/dist"
-if _os.path.isdir(_FRONTEND_DIST):
+if os.path.isdir(_FRONTEND_DIST):
     app.mount("/assets", StaticFiles(directory=f"{_FRONTEND_DIST}/assets"), name="spa-assets")
 
-_INDEX_HTML = """<!DOCTYPE html>
-<html lang="zh">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>派萌助手 · 声纹管理</title>
-<script type="module" crossorigin src="/assets/index-B6mKfYOL.js"></script>
-<link rel="stylesheet" crossorigin href="/assets/index-Bl5hNFR3.css">
-</head>
-<body>
-<div id="root"></div>
-</body>
-</html>"""
-# 生产环境自动替换为 Vite 构建的 index.html
-import os as _os2
+_INDEX_HTML = ""
 _dist_index = "frontend/dist/index.html"
-if _os2.path.exists(_dist_index):
+if os.path.isfile(_dist_index):
     with open(_dist_index, encoding="utf-8") as _f:
         _INDEX_HTML = _f.read()
 
@@ -46,6 +31,8 @@ if _os2.path.exists(_dist_index):
 @app.get("/")
 async def index():
     from fastapi.responses import HTMLResponse
+    if not _INDEX_HTML:
+        raise HTTPException(503, "前端未构建，请运行: cd frontend && bun run build")
     return HTMLResponse(_INDEX_HTML)
 
 
