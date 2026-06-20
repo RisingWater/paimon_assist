@@ -18,7 +18,8 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 |------|------|----------|
 | `src/main.py` | 入口 + ONNX patch + 主循环 + `--web-only` | — |
 | `src/config.py` | 加载 `.env`，导出全部配置常量 | 模块级变量 |
-| `src/wakeword.py` | 唤醒词检测 | `create_listener()` |
+| `src/wakeword.py` | 唤醒词检测 + 音频收集（训练数据） | `create_listener()`, `classify_audio()` |
+| `src/log_manager.py` | 日志管理（磁盘 20MB + 内存缓冲 + 异常捕获） | `setup()`, `get_logs()`, `export_text()`, `clear()` |
 | `src/tts/` | TTS 模块 — VITS/HTTP 工厂 + 缓存 + API + 音频管理 | `import tts` |
 | `src/tts/vits_tts.py` | VitsTTS（Paimon 22050Hz） | `synthesize() → (audio, sr)` |
 | `src/tts/tts_http.py` | HttpTTS（EasyVoice API） | `synthesize() → (audio, sr)` |
@@ -40,12 +41,13 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/reminder.py` | 定时提醒（一次性/每天/每月/农历） | `add_reminder`, `list_reminders`, `delete_reminder` |
 | `src/llm_tools/volume.py` | PulseAudio 音量控制 | `get_volume`, `set_volume` |
 | `src/llm_tools/ask_user.py` | 反问用户收集信息 | `ask_question_to_user` |
+| `src/llm_tools/door.py` | 楼下门禁开门 | `open_door` |
 | `src/reminder_thread.py` | 定时提醒后台线程（每分钟检查） | `start()` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
 | `src/tts/api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
 | `src/tts/cache.py` | MD5 WAV 缓存，DB 存储 | `TTSCache` |
 | `src/vits/` | VITS 模型代码（jaywalnut310/vits，MIT） | 推理用 |
-| `frontend/` | React + Vite + antd 前端（6 tabs） | bun run dev / bun run build |
+| `frontend/` | React + Vite + antd 前端（9 tabs） | bun run dev / bun run build |
 
 ## 运行方式
 
@@ -57,7 +59,7 @@ python src/main.py
 python src/main.py --web-only
 ```
 
-Web 界面 `localhost:8160` — 八个栏目 + 系统配置弹窗：
+Web 界面 `localhost:8160` — 九个栏目 + 系统配置弹窗：
 - **用户管理** — 创建、重命名、删除用户
 - **声纹管理** — 浏览器录音 / 上传 WAV + 试听 + 拖拽移动 + 声纹检测
 - **聊天历史** — 按用户查看/编辑/删除 LLM 对话，内置直接提问框
@@ -65,6 +67,8 @@ Web 界面 `localhost:8160` — 八个栏目 + 系统配置弹窗：
 - **记忆管理** — 编辑长期+中期记忆
 - **TTS 缓存** — 查看/搜索/试听/删除缓存
 - **备份恢复** — 创建/上传/下载/恢复备份 ZIP
+- **系统日志** — 实时查看/筛选/搜索/导出（磁盘持久化 20MB）
+- **唤醒词收集** — 正例/负例分表、试听、移动、删除（用于模型重训练）
 - 右上角齿轮 → 系统配置（TTS 后端 + 工具静默）
 
 ## 数据库
@@ -115,10 +119,12 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `set_volume` | 设置扬声器音量（0-200%） |
 | `ask_question_to_user` | 信息不足时反问用户（TTS提问+录音+STT） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
+| `open_door` | 打开楼下门禁 |
 
 每个工具标注 `memory_value`（0-10）：0=无记忆价值（开关/查询），5-8=中高价值（定位/搜索），10=极高（save_memory）。
+每个工具通过 `@register(silent=True/False)` 声明是否播 TTS 提示语。Web 配置页可覆盖。
 
-新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register(memory_value=N)` 装饰 → 在 `__init__.py` 导入。
+新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register(memory_value=N, silent=True/False)` 装饰 → 在 `__init__.py` 导入。
 
 ## 记忆系统
 
@@ -157,6 +163,8 @@ numpy, python-dotenv
 | `HOMEASSIANT_TOKEN` | Home Assistant 长期令牌 | — |
 | `DEFAULT_CITY` | 天气默认城市 | 福州 |
 | `CLAUDE_BIN` | Claude Code CLI 路径 | %APPDATA%\npm\claude.cmd |
+| `DOOR_OPEN_URL` | 门禁开门接口地址 | — |
+| `DOOR_OPEN_TOKEN` | 门禁开门 JWT token | — |
 | `DISABLE_UPDATE` | 设为 1 禁止模型在线更新 | 0 |
 
 ## 模型文件
@@ -179,4 +187,6 @@ numpy, python-dotenv
 - VITS 模型权重 `models/paimon.pth` 不提交 git
 - TTS 播放时暂停唤醒词检测，播完自动恢复
 - tool call 多轮循环最多 5 轮
-- 静默工具（read_memory/save_memory/list_ac/get_tv_state）不播 TTS 提示语
+- 静默工具由 `@register(silent=True)` 声明，与 settings.json 合并生效
+- 日志磁盘持久化 `logs/paimon.log`（5MB×4=20MB），Web 可查看/导出
+- 唤醒词音频自动收集到 `wakeword/positive/` 和 `wakeword/negative/`
