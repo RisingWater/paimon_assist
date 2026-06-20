@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Layout, Tabs, Typography, App, Button } from "antd"
-import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined, SaveOutlined, FileTextOutlined } from "@ant-design/icons"
+import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined, SaveOutlined, FileTextOutlined, SoundOutlined } from "@ant-design/icons"
 import { api, type User } from "./api"
 import UserTab from "./components/UserTab"
 import VoiceprintTab from "./components/VoiceprintTab"
@@ -11,6 +11,7 @@ import SystemConfigModal from "./components/SystemConfigModal"
 import CacheTab from "./components/CacheTab"
 import BackupTab from "./components/BackupTab"
 import LogTab from "./components/LogTab"
+import WakewordTab from "./components/WakewordTab"
 
 const { Header, Content } = Layout
 
@@ -73,6 +74,11 @@ export default function Root() {
       key: "logs",
       label: <span><FileTextOutlined /> 系统日志</span>,
       children: <LogTab />,
+    },
+    {
+      key: "wakeword",
+      label: <span><SoundOutlined /> 唤醒词收集</span>,
+      children: <WakewordTab />,
     },
   ]
 

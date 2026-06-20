@@ -138,6 +138,23 @@ export const api = {
     fetch(`${BASE}/logs`, { method: "DELETE" }).then((r) => r.json()),
 
   exportLogsUrl: (): string => `${BASE}/logs/export`,
+
+  // Wakeword
+  listWakewordFiles: (category: string): Promise<WakewordFile[]> =>
+    fetch(`${BASE}/wakeword/list?category=${encodeURIComponent(category)}`).then((r) => r.json()),
+
+  wakewordAudioUrl: (category: string, filename: string): string =>
+    `${BASE}/wakeword/audio/${encodeURIComponent(category)}/${encodeURIComponent(filename)}`,
+
+  moveWakeword: (filename: string, fromCategory: string, toCategory: string) =>
+    fetch(`${BASE}/wakeword/move`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" } as JsonHeaders,
+      body: JSON.stringify({ filename, from_category: fromCategory, to_category: toCategory }),
+    }).then((r) => r.json()),
+
+  deleteWakeword: (category: string, filename: string) =>
+    fetch(`${BASE}/wakeword/${encodeURIComponent(category)}/${encodeURIComponent(filename)}`, { method: "DELETE" }),
 }
 
 export interface Reminder {
@@ -163,3 +180,10 @@ export interface LogResult {
   total: number
   logs: LogEntry[]
 }
+
+export interface WakewordFile {
+  filename: string
+  size: number
+  mtime: number
+}
+

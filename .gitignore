@@ -16,6 +16,10 @@ models/tts_cache/
 
 # 录音文件
 recordings/
+
+# 唤醒词训练数据
+wakeword/
+
 *.wav
 
 # Frontend build output

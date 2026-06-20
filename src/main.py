@@ -103,6 +103,7 @@ async def main():
             # 过滤太短的输入（≤2 个字不送 LLM）
             if text.strip() and len(text.strip()) < 3:
                 _log.info("STT too short, skipped")
+                ww.classify_audio("negative")
                 text = ""
 
             # 4. LLM + 同步播放回复
@@ -115,7 +116,7 @@ async def main():
 
                 if reply == "__SKIP__":
                     _log.info("LLM skip (noise/misrecognition)")
-                    # 清理录音和刚添加的声纹
+                    ww.classify_audio("negative")
                     import os as _os
                     try:
                         if _os.path.isfile(audio_path):
@@ -126,11 +127,13 @@ async def main():
                     if vp_id:
                         db.delete_voiceprint(vp_id)
                 elif reply:
+                    ww.classify_audio("positive")
                     t3 = time.time()
                     await asyncio.to_thread(tts.speak_sync, reply)
                     if time.time() - t3 > 0.5:
                         _log.info("TTS playback: %.1fs", time.time()-t3)
-            # 没说话 → 直接回到唤醒词检测
+            else:
+                ww.classify_audio("negative")
 
             _log.info("Saved: %s [total=%.1fs]", audio_path, time.time()-t0)
             counter += 1

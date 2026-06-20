@@ -545,6 +545,66 @@ async def api_clear_logs():
     return {"ok": True}
 
 
+# ---- 唤醒词音频管理 ----
+
+_WW_DIR = "wakeword"
+
+
+@app.get("/api/wakeword/list")
+async def api_wakeword_list(category: str = "positive"):
+    """列出唤醒词音频文件"""
+    if category not in ("positive", "negative"):
+        raise HTTPException(400, "category 必须是 positive 或 negative")
+    d = os.path.join(_WW_DIR, category)
+    if not os.path.isdir(d):
+        return []
+    files = []
+    for fn in sorted(os.listdir(d), reverse=True):
+        if fn.endswith(".wav"):
+            fp = os.path.join(d, fn)
+            files.append({"filename": fn, "size": os.path.getsize(fp), "mtime": os.path.getmtime(fp)})
+    return files
+
+
+@app.get("/api/wakeword/audio/{category}/{filename}")
+async def api_wakeword_audio(category: str, filename: str):
+    """播放唤醒词音频"""
+    if category not in ("positive", "negative"):
+        raise HTTPException(400)
+    path = os.path.join(_WW_DIR, category, filename)
+    if not os.path.isfile(path):
+        raise HTTPException(404, "文件不存在")
+    return FileResponse(path, media_type="audio/wav")
+
+
+class WakewordMoveBody(BaseModel):
+    filename: str
+    from_category: str
+    to_category: str
+
+
+@app.put("/api/wakeword/move")
+async def api_wakeword_move(body: WakewordMoveBody):
+    """在 positive/negative 之间移动"""
+    src = os.path.join(_WW_DIR, body.from_category, body.filename)
+    dst = os.path.join(_WW_DIR, body.to_category, body.filename)
+    if not os.path.isfile(src):
+        raise HTTPException(404, "源文件不存在")
+    os.makedirs(os.path.dirname(dst), exist_ok=True)
+    os.rename(src, dst)
+    return {"ok": True}
+
+
+@app.delete("/api/wakeword/{category}/{filename}")
+async def api_wakeword_delete(category: str, filename: str):
+    """删除唤醒词音频"""
+    path = os.path.join(_WW_DIR, category, filename)
+    if not os.path.isfile(path):
+        raise HTTPException(404, "文件不存在")
+    os.remove(path)
+    return {"ok": True}
+
+
 @app.get("/{path:path}")
 async def spa_fallback(path: str):
     # API 和静态资源不走 fallback
