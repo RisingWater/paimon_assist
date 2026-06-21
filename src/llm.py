@@ -208,6 +208,16 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
                 _log.info("Tool call: %s(%s)", fn_name, fn_args)
                 result = llm_tools.execute(fn_name, fn_args)
                 _log.info("Tool result: %s", result[:200] if result else "(empty)")
+
+                # final 工具：成功则直接返回，失败才交给 LLM
+                if llm_tools.is_final(fn_name):
+                    is_error = "失败" in result or "错误" in result
+                    if not is_error:
+                        if user_id:
+                            db.append_message(user_id, "assistant", result)
+                        history.append({"role": "assistant", "content": result})
+                        return result
+
                 tool_msg = {
                     "role": "tool",
                     "tool_call_id": tc["id"],

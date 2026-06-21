@@ -6,6 +6,28 @@ from config import HOME_ASSISTANT_URL, HOME_ASSISTANT_TOKEN
 
 _log = logging.getLogger(__name__)
 
+_CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
+
+
+def _cn(n: int) -> str:
+    """整数转中文数字（0-200）"""
+    if n < 0:
+        return f"负{_cn(-n)}"
+    if n <= 10:
+        return _CN_DIGITS[n] if n < 10 else "十"
+    if n < 20:
+        return f"十{_CN_DIGITS[n - 10]}"
+    if n < 100:
+        tens = _CN_DIGITS[n // 10]
+        ones = _CN_DIGITS[n % 10]
+        return f"{tens}十{ones}" if n % 10 else f"{tens}十"
+    # 100+
+    hundreds = _CN_DIGITS[n // 100]
+    rest = n % 100
+    if rest == 0:
+        return f"{hundreds}百"
+    return f"{hundreds}百{_cn(rest)}"
+
 _HEADERS = {
     "Authorization": f"Bearer {HOME_ASSISTANT_TOKEN}",
     "Content-Type": "application/json",
@@ -95,7 +117,7 @@ def list_ac(_args: dict = {}) -> str:
         return f"查询空调失败：{e}"
 
 
-@register(memory_value=0, silent=True,
+@register(memory_value=0, silent=True, final=True,
     name="control_ac",
     description=(
         "控制指定的空调。必须先调 list_ac 获取空调名称。"
@@ -139,11 +161,11 @@ def control_ac(args: dict) -> str:
 
         if action == "on":
             _call_service("climate", "turn_on", entity_id)
-            return f"已开启 {entity_id}，当前 {_get_ac_state(entity_id)}"
+            return f"{name}空调已开启，当前{_get_ac_state(entity_id)}"
 
         elif action == "off":
             _call_service("climate", "turn_off", entity_id)
-            return f"已关闭 {entity_id}，当前 {_get_ac_state(entity_id)}"
+            return f"{name}空调已关闭"
 
         elif action == "set_temp":
             if not value:
@@ -151,7 +173,7 @@ def control_ac(args: dict) -> str:
             temp = float(value)
             _call_service("climate", "set_hvac_mode", entity_id, {"hvac_mode": "cool"})
             _call_service("climate", "set_temperature", entity_id, {"temperature": temp})
-            return f"已设置 {entity_id} 温度为 {temp}°C（制冷模式），当前 {_get_ac_state(entity_id)}"
+            return f"{name}空调温度已设置为{_cn(int(temp))}度"
 
         elif action == "set_mode":
             if not value:
@@ -162,7 +184,7 @@ def control_ac(args: dict) -> str:
                 return f"无效模式，可选：{', '.join(sorted(valid))}"
             _call_service("climate", "set_hvac_mode", entity_id, {"hvac_mode": value})
             mode_cn = {"cool": "制冷", "heat": "制热", "auto": "自动", "dry": "除湿", "fan_only": "送风"}
-            return f"已设置 {entity_id} 模式为 {mode_cn.get(value, value)}，当前 {_get_ac_state(entity_id)}"
+            return f"{name}空调模式已切换为{mode_cn.get(value, value)}"
 
         return f"未知操作: {action}"
 

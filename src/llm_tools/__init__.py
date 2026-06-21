@@ -12,6 +12,7 @@ def register(
     parameters: dict,
     memory_value: int = 0,
     silent: bool = False,
+    final: bool = False,
 ):
     """装饰器：注册一个 tool。
 
@@ -19,6 +20,8 @@ def register(
         memory_value: 0=无记忆价值(开关/查询), 1-3=低(提醒CRUD),
                       4-6=中(天气/定位), 7-10=高(搜索/记忆)
         silent: True=调用时不播 TTS 提示语（开关/查询类工具）
+        final: True=工具返回值直接作为最终回复播出，不再让 LLM 二次加工。
+               失败（含"失败"/"错误"字样）时仍会交给 LLM 友好解释。
     """
 
     def decorator(fn: Callable[[dict], str]):
@@ -34,6 +37,7 @@ def register(
             "handler": fn,
             "memory_value": memory_value,
             "silent": silent,
+            "final": final,
         }
         return fn
 
@@ -49,6 +53,12 @@ def get_memory_value(name: str) -> int:
 def get_default_silent_tools() -> set[str]:
     """返回所有 silent=True 的工具名（工具自身声明）"""
     return {name for name, t in _registry.items() if t.get("silent")}
+
+
+def is_final(name: str) -> bool:
+    """工具是否标记为 final（返回值直接作为最终回复）"""
+    t = _registry.get(name)
+    return t.get("final", False) if t else False
 
 
 def get_schemas() -> list[dict]:

@@ -6,7 +6,7 @@ import db
 _log = logging.getLogger(__name__)
 
 
-@register(memory_value=5,
+@register(memory_value=5, final=True,
     name="add_reminder",
     description=(
         "添加一个定时提醒或定时任务。支持一次性、每天、每月（公历/农历）。"
@@ -37,7 +37,7 @@ def add_reminder(args: dict) -> str:
             uid, args["content"], args["rtype"],
             args["datetime"], args.get("lunar", False),
         )
-        return f"已添加提醒 #{rid}：{args['content']}"
+        return f"提醒已设置：{args['content']}"
     except Exception as e:
         return f"添加提醒失败：{e}"
 
@@ -65,7 +65,7 @@ def list_reminders(_args: dict = {}) -> str:
         return f"查询失败：{e}"
 
 
-@register(memory_value=1, silent=True,
+@register(memory_value=1, silent=True, final=True,
     name="delete_reminder",
     description="删除一个定时提醒。",
     parameters={
@@ -79,6 +79,6 @@ def list_reminders(_args: dict = {}) -> str:
 def delete_reminder(args: dict) -> str:
     try:
         db.delete_reminder(args["reminder_id"])
-        return f"已删除提醒 #{args['reminder_id']}"
+        return "提醒已经删除"
     except Exception as e:
         return f"删除失败：{e}"

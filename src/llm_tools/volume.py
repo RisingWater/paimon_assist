@@ -6,6 +6,26 @@ from llm_tools import register
 
 _log = logging.getLogger(__name__)
 
+_CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
+
+
+def _cn(n: int) -> str:
+    if n < 10:
+        return _CN_DIGITS[n]
+    if n == 10:
+        return "十"
+    if n < 20:
+        return f"十{_CN_DIGITS[n - 10]}"
+    if n < 100:
+        tens = _CN_DIGITS[n // 10]
+        ones = _CN_DIGITS[n % 10]
+        return f"{tens}十{ones}" if n % 10 else f"{tens}十"
+    hundreds = _CN_DIGITS[n // 100]
+    rest = n % 100
+    if rest == 0:
+        return f"{hundreds}百"
+    return f"{hundreds}百{_cn(rest)}"
+
 _SINK = "@DEFAULT_SINK@"
 
 
@@ -32,7 +52,7 @@ def get_volume(_args: dict = {}) -> str:
         return f"获取音量失败：{e}"
 
 
-@register(memory_value=0, silent=True,
+@register(memory_value=0, silent=True, final=True,
     name="set_volume",
     description="设置扬声器音量。参数为百分比数字，如 50 表示 50%。",
     parameters={
@@ -53,6 +73,6 @@ def set_volume(args: dict) -> str:
             ["pactl", "set-sink-volume", _SINK, f"{vol}%"],
             capture_output=True, check=True,
         )
-        return f"音量已设为 {vol}%"
+        return f"音量已经设置为百分之{_cn(vol)}"
     except Exception as e:
         return f"设置音量失败：{e}"

@@ -77,7 +77,7 @@ def get_tv_state(_args: dict = {}) -> str:
         return f"查询失败：{e}"
 
 
-@register(memory_value=0, silent=True,
+@register(memory_value=0, silent=True, final=True,
     name="control_tv",
     description=(
         "控制小米电视。开=退出音响模式，关=进入音响模式。"
@@ -103,13 +103,13 @@ def control_tv(args: dict) -> str:
             if not eid:
                 return "没有找到电视开关（退出音响模式按钮）"
             _press_button(eid)
-            return "已打开电视（退出音响模式）"
+            return "电视已打开"
         else:
             eid = _find_tv_button("turn_mode_on")
             if not eid:
                 return "没有找到电视开关（进入音响模式按钮）"
             _press_button(eid)
-            return "已关闭电视（进入音响模式）"
+            return "电视已关闭"
     except Exception as e:
         return f"电视控制失败：{e}"
 

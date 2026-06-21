@@ -8,7 +8,7 @@ _log = logging.getLogger(__name__)
 
 
 @register(
-    memory_value=0, silent=True,
+    memory_value=0, silent=True, final=True,
     name="open_door",
     description="打开楼下门禁。调用后会自动打开单元楼的楼下门禁。",
     parameters={
@@ -41,7 +41,7 @@ def open_door(_args: dict = {}) -> str:
         data = resp.json()
         if data.get("code") == "00000":
             _log.info("开门成功")
-            return "门已打开"
+            return "楼下的门已打开"
         else:
             _log.error("开门失败: %s", data.get("msg", "未知错误"))
             return f"开门失败: {data.get('msg', '未知错误')}"
