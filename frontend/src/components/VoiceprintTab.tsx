@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
-import { Button, Space, Typography, Card, App, Spin, Empty } from "antd"
+import { Button, Space, Typography, Card, App, Spin, Empty, Grid } from "antd"
 import { AudioOutlined, SearchOutlined, HolderOutlined } from "@ant-design/icons"
+
+const { useBreakpoint } = Grid
 import { api, type User, type Voiceprint } from "../api"
 import AddVoiceprintDialog from "../dialogs/AddVoiceprintDialog"
 import DetectDialog from "../dialogs/DetectDialog"
@@ -13,6 +15,8 @@ interface Props {
 
 export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
   const { message } = App.useApp()
+  const screens = useBreakpoint()
+  const cols = screens.xs ? 2 : 4
   const [vpsCache, setVpsCache] = useState<Record<number, Voiceprint[]>>({})
   const [dlgAddVp, setDlgAddVp] = useState(false)
   const [dlgDetect, setDlgDetect] = useState(false)
@@ -122,7 +126,7 @@ export default function VoiceprintTab({ users, loading, onRefresh }: Props) {
                 </Typography.Text>
               }
             >
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: `repeat(${cols}, 1fr)`, gap: 8 }}>
                 {(vpsCache[u.id] || []).map((vp) => (
                   <div
                     key={vp.id}

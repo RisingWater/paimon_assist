@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react"
-import { Modal, Tabs, Radio, Typography, Button, Switch, App, Spin } from "antd"
+import { Modal, Tabs, Radio, Typography, Button, Switch, App, Spin, Grid } from "antd"
+
+const { useBreakpoint } = Grid
 import { SaveOutlined } from "@ant-design/icons"
 
 interface ToolInfo {
@@ -14,6 +16,7 @@ interface Props {
 
 export default function SystemConfigModal({ open, onClose }: Props) {
   const { message } = App.useApp()
+  const screens = useBreakpoint()
   const [ttsBackend, setTtsBackend] = useState("vits")
   const [tools, setTools] = useState<ToolInfo[]>([])
   const [silent, setSilent] = useState<Set<string>>(new Set())
@@ -104,7 +107,7 @@ export default function SystemConfigModal({ open, onClose }: Props) {
       open={open}
       onCancel={onClose}
       footer={null}
-      width={700}
+      width={screens.xs ? "95%" : 700}
     >
       <Tabs items={[
         { key: "tts", label: "TTS 后端", children: ttsTab },

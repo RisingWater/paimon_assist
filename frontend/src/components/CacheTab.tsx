@@ -96,6 +96,7 @@ export default function CacheTab() {
         rowKey="id"
         size="small"
         loading={loading}
+        scroll={{ x: "max-content" }}
         pagination={{ pageSize: 20 }}
         columns={[
           { title: "文本", dataIndex: "text", ellipsis: true },

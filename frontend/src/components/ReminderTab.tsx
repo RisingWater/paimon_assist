@@ -76,24 +76,27 @@ export default function ReminderTab() {
           rowKey="id"
           size="small"
           loading={loading}
+          scroll={{ x: "max-content" }}
           pagination={{ pageSize: 20 }}
           columns={[
             { title: "#", dataIndex: "id", width: 50 },
-            { title: "内容", dataIndex: "content" },
+            { title: "内容", dataIndex: "content", ellipsis: true },
             {
-              title: "类型", dataIndex: "rtype", width: 100,
+              title: "类型", dataIndex: "rtype", width: 80,
               render: (t: string) => <Tag color={typeColor[t]}>{typeLabel[t] || t}</Tag>,
             },
             {
-              title: "时间", dataIndex: "datetime", width: 180,
-              render: (v: string, r: Reminder) => (r.lunar ? "农历 " : "") + v,
+              title: "时间", dataIndex: "datetime", width: 140,
+              render: (v: string, r: Reminder) => (
+                <span style={{ fontSize: 12 }}>{(r.lunar ? "农历 " : "") + v}</span>
+              ),
             },
             {
-              title: "状态", dataIndex: "done", width: 80,
-              render: (d: boolean) => d ? <Tag color="green">已完成</Tag> : <Tag>进行中</Tag>,
+              title: "状态", dataIndex: "done", width: 70,
+              render: (d: boolean) => d ? <Tag color="green">完成</Tag> : <Tag>进行中</Tag>,
             },
             {
-              title: "操作", key: "actions", width: 80,
+              title: "操作", key: "actions", width: 60,
               render: (_: unknown, r: Reminder) => (
                 <Popconfirm title="删除？" onConfirm={() => handleDelete(r.id)}>
                   <Button size="small" danger icon={<DeleteOutlined />} />

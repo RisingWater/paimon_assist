@@ -91,7 +91,7 @@ export default function BackupTab() {
       </Typography.Paragraph>
 
       <Table dataSource={items} rowKey="filename" size="small" loading={loading}
-        pagination={{ pageSize: 20 }} columns={columns}
+        scroll={{ x: "max-content" }} pagination={{ pageSize: 20 }} columns={columns}
         locale={{ emptyText: "暂无备份，点击「创建备份」生成" }} />
     </div>
   )
