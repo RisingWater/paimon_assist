@@ -123,8 +123,10 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 
 每个工具标注 `memory_value`（0-10）：0=无记忆价值（开关/查询），5-8=中高价值（定位/搜索），10=极高（save_memory）。
 每个工具通过 `@register(silent=True/False)` 声明是否播 TTS 提示语。Web 配置页可覆盖。
+每个工具通过 `@register(final=True/False)` 声明是否跳过 LLM 二次加工：final 工具（控制类）的返回值直接作为最终回复播出，省一轮 LLM 调用；失败时（含"失败"/"错误"）仍交 LLM 友好解释。
+final 工具的返回值必须是口语化中文，数字用中文写（"二十六"而不是"26"）。
 
-新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register(memory_value=N, silent=True/False)` 装饰 → 在 `__init__.py` 导入。
+新增工具：在 `src/llm_tools/` 下创建模块 → 用 `@register(memory_value=N, silent=True/False, final=True/False)` 装饰 → 在 `__init__.py` 导入。
 
 ## 记忆系统
 

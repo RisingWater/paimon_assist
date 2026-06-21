@@ -110,6 +110,7 @@ DeepSeek 自动调用工具获取实时信息：
 | `open_door` | 打开楼下门禁 |
 
 工具静默：每个工具通过 `@register(silent=True/False)` 声明是否播 TTS 提示语，Web 配置页可覆盖。
+Final 工具（`control_ac`/`control_tv`/`set_volume`/`open_door`/`add_reminder`/`delete_reminder`）：返回值直接作为最终 TTS 播出，跳过 LLM 二次加工，省 token 更快响应。
 
 ## 配置（.env）
 
