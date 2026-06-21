@@ -396,7 +396,13 @@ async def api_save_tool_config(req: dict):
 
 @app.get("/api/system-config")
 async def api_get_system_config():
-    return {"tts_backend": _settings_mod.get("tts_backend")}
+    return {
+        "tts_backend": _settings_mod.get("tts_backend"),
+        "wakeword_enabled": _settings_mod.get("wakeword_enabled"),
+        "wakeword_schedule_enabled": _settings_mod.get("wakeword_schedule_enabled"),
+        "wakeword_start": _settings_mod.get("wakeword_start"),
+        "wakeword_end": _settings_mod.get("wakeword_end"),
+    }
 
 
 @app.put("/api/system-config")
@@ -405,6 +411,16 @@ async def api_save_system_config(req: dict):
     backend = req.get("tts_backend", "vits")
     _settings_mod.set_config("tts_backend", backend)
     _tts_backend = backend
+
+    if "wakeword_enabled" in req:
+        _settings_mod.set_config("wakeword_enabled", bool(req["wakeword_enabled"]))
+    if "wakeword_schedule_enabled" in req:
+        _settings_mod.set_config("wakeword_schedule_enabled", bool(req["wakeword_schedule_enabled"]))
+    if "wakeword_start" in req:
+        _settings_mod.set_config("wakeword_start", req["wakeword_start"])
+    if "wakeword_end" in req:
+        _settings_mod.set_config("wakeword_end", req["wakeword_end"])
+
     return {"ok": True, "tts_backend": backend}
 
 

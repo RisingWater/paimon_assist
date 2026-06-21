@@ -9,6 +9,10 @@ _FILE = os.path.join(os.path.dirname(__file__), "..", "settings", "settings.json
 _DEFAULTS = {
     "tts_backend": "vits",
     "silent_tools": [],
+    "wakeword_enabled": True,
+    "wakeword_schedule_enabled": False,
+    "wakeword_start": "06:00",
+    "wakeword_end": "24:00",
 }
 
 

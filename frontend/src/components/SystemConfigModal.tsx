@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react"
-import { Modal, Tabs, Radio, Typography, Button, Switch, App, Spin, Grid } from "antd"
+import { Modal, Tabs, Radio, Typography, Button, Switch, App, Spin, Grid, TimePicker, Space, Tag } from "antd"
+import { SaveOutlined } from "@ant-design/icons"
+import dayjs, { type Dayjs } from "dayjs"
 
 const { useBreakpoint } = Grid
-import { SaveOutlined } from "@ant-design/icons"
 
 interface ToolInfo {
   name: string
   description: string
+  silent_default?: boolean
 }
 
 interface Props {
@@ -22,19 +24,27 @@ export default function SystemConfigModal({ open, onClose }: Props) {
   const [silent, setSilent] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(false)
 
+  // 唤醒词配置
+  const [wwEnabled, setWwEnabled] = useState(true)
+  const [wwScheduleEnabled, setWwScheduleEnabled] = useState(false)
+  const [wwStart, setWwStart] = useState<Dayjs>(dayjs("06:00", "HH:mm"))
+  const [wwEnd, setWwEnd] = useState<Dayjs>(dayjs("24:00", "HH:mm"))
+
   useEffect(() => {
     if (!open) return
     setLoading(true)
 
-    // 加载工具配置
     fetch("/api/tool-config").then(r => r.json()).then(data => {
       setTools(data.tools)
       setSilent(new Set(data.silent))
     }).catch(() => {})
 
-    // 加载 TTS 配置
     fetch("/api/system-config").then(r => r.json()).then(data => {
       setTtsBackend(data.tts_backend || "vits")
+      setWwEnabled(data.wakeword_enabled !== false)
+      setWwScheduleEnabled(data.wakeword_schedule_enabled === true)
+      setWwStart(dayjs(data.wakeword_start || "06:00", "HH:mm"))
+      setWwEnd(dayjs(data.wakeword_end || "24:00", "HH:mm"))
     }).catch(() => {}).finally(() => setLoading(false))
   }, [open])
 
@@ -57,6 +67,22 @@ export default function SystemConfigModal({ open, onClose }: Props) {
         body: JSON.stringify({ tts_backend: ttsBackend }),
       })
       message.success("TTS 配置已保存")
+    } catch { message.error("保存失败") }
+  }
+
+  async function saveWakewordConfig() {
+    try {
+      await fetch("/api/system-config", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          wakeword_enabled: wwEnabled,
+          wakeword_schedule_enabled: wwScheduleEnabled,
+          wakeword_start: wwStart.format("HH:mm"),
+          wakeword_end: wwEnd.format("HH:mm"),
+        }),
+      })
+      message.success("唤醒词配置已保存")
     } catch { message.error("保存失败") }
   }
 
@@ -89,14 +115,60 @@ export default function SystemConfigModal({ open, onClose }: Props) {
       <Spin spinning={loading}>
         {tools.map(t => (
           <div key={t.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "6px 0", borderBottom: "1px solid #f0f0f0" }}>
-            <Switch size="small" checked={silent.has(t.name)} onChange={v => toggleTool(t.name, v)} />
+            <Switch size="small" checked={silent.has(t.name) || !!t.silent_default} onChange={v => toggleTool(t.name, v)} />
             <Typography.Text code style={{ width: 200, fontSize: 12, whiteSpace: "nowrap", flexShrink: 0 }}>{t.name}</Typography.Text>
+            {t.silent_default && <Tag color="blue" style={{ fontSize: 11, lineHeight: "18px" }}>默认</Tag>}
             <Typography.Text type="secondary" style={{ fontSize: 12, flex: 1 }}>{t.description}</Typography.Text>
           </div>
         ))}
       </Spin>
       <div style={{ marginTop: 16 }}>
         <Button type="primary" icon={<SaveOutlined />} onClick={saveToolConfig}>保存</Button>
+      </div>
+    </div>
+  )
+
+  const wakewordTab = (
+    <div>
+      <Typography.Title level={5} style={{ marginBottom: 16 }}>唤醒词控制</Typography.Title>
+      <Spin spinning={loading}>
+        {/* 总开关 */}
+        <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20, padding: "12px 0", borderBottom: "1px solid #f0f0f0" }}>
+          <Typography.Text strong>总开关：</Typography.Text>
+          <Switch checked={wwEnabled} onChange={setWwEnabled} />
+          <Typography.Text type={wwEnabled ? "success" : "secondary"}>
+            {wwEnabled ? "已开启" : "已关闭"}
+          </Typography.Text>
+          <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+            {wwEnabled ? "唤醒词正常工作" : "完全不响应唤醒词"}
+          </Typography.Text>
+        </div>
+
+        {/* 定时开关 */}
+        <div style={{ padding: "12px 0", marginBottom: 8 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 12 }}>
+            <Typography.Text strong>定时唤醒：</Typography.Text>
+            <Switch checked={wwScheduleEnabled} onChange={setWwScheduleEnabled} />
+            <Typography.Text type={wwScheduleEnabled ? "success" : "secondary"}>
+              {wwScheduleEnabled ? "已开启" : "已关闭"}
+            </Typography.Text>
+          </div>
+          {wwScheduleEnabled && (
+            <div style={{ marginLeft: 8 }}>
+              <Space>
+                <TimePicker value={wwStart} onChange={v => v && setWwStart(v)} format="HH:mm" size="small" />
+                <Typography.Text>—</Typography.Text>
+                <TimePicker value={wwEnd} onChange={v => v && setWwEnd(v)} format="HH:mm" size="small" />
+              </Space>
+              <Typography.Text type="secondary" style={{ display: "block", marginTop: 8, fontSize: 12 }}>
+                只有在此时间段内才会响应唤醒词。支持跨天（如 22:00-06:00）。
+              </Typography.Text>
+            </div>
+          )}
+        </div>
+      </Spin>
+      <div style={{ marginTop: 16 }}>
+        <Button type="primary" icon={<SaveOutlined />} onClick={saveWakewordConfig}>保存</Button>
       </div>
     </div>
   )
@@ -112,6 +184,7 @@ export default function SystemConfigModal({ open, onClose }: Props) {
       <Tabs items={[
         { key: "tts", label: "TTS 后端", children: ttsTab },
         { key: "tools", label: "工具配置", children: toolsTab },
+        { key: "wakeword", label: "唤醒词", children: wakewordTab },
       ]} />
     </Modal>
   )

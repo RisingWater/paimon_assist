@@ -37,7 +37,9 @@ log_manager.setup()
 import asyncio
 import threading
 import time
+from datetime import datetime
 from config import THRESHOLD, VOICEPRINT_THRESHOLD
+import settings
 
 _log = logging.getLogger("main")
 import wakeword as ww
@@ -76,6 +78,20 @@ async def main():
         while True:
             detection = await listener.wait_for_detection()
             _log.info("WAKE! score=%.4f", detection.confidence)
+
+            # 总开关
+            if not settings.get("wakeword_enabled"):
+                _log.info("Wakeword disabled, skipped")
+                continue
+            # 定时开关 + 时间段
+            if settings.get("wakeword_schedule_enabled"):
+                now = datetime.now().strftime("%H:%M")
+                start = settings.get("wakeword_start") or "06:00"
+                end = settings.get("wakeword_end") or "24:00"
+                in_range = (start <= now <= end) if start <= end else (now >= start or now <= end)
+                if not in_range:
+                    _log.info("Wakeword outside allowed time (%s-%s), skipped", start, end)
+                    continue
 
             t0 = time.time()
             # 同步播放"我在呢"，播完立即开始录音
