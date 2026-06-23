@@ -524,6 +524,10 @@ async def api_restore_backup(filename: str):
 
 from fastapi.responses import PlainTextResponse
 import log_manager as _log_mgr
+import memory_monitor as _mem_mon
+
+# 启动内存监控
+_mem_mon.start()
 
 
 @app.get("/api/logs")
@@ -619,6 +623,21 @@ async def api_wakeword_delete(category: str, filename: str):
         raise HTTPException(404, "文件不存在")
     os.remove(path)
     return {"ok": True}
+
+
+# ---- 内存监控 API ----
+
+
+@app.get("/api/memory/report")
+async def api_memory_report():
+    """获取各模块内存占用报告"""
+    return _mem_mon.get_report()
+
+
+@app.post("/api/memory/gc")
+async def api_memory_gc():
+    """手动触发垃圾回收"""
+    return _mem_mon.gc_now()
 
 
 @app.get("/{path:path}")

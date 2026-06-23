@@ -4,6 +4,7 @@ import re
 from funasr import AutoModel
 from funasr.utils.postprocess_utils import rich_transcription_postprocess
 from config import DISABLE_UPDATE
+import memory_monitor
 
 _log = logging.getLogger(__name__)
 
@@ -21,8 +22,13 @@ class STT:
         self._model = AutoModel(
             model=self.model_path,
             device="cpu",
+            ncpu=1,  # 单线程推理，降低内存占用
             disable_update=DISABLE_UPDATE,
         )
+        # 注册到内存监控（SenseVoiceSmall 约 200MB）
+        memory_monitor.register_model("SenseVoiceSmall (STT)", self.model_path,
+                                      "FunASR 语音转文字",
+                                      category="模型")
         _log.info("SenseVoiceSmall loaded")
 
     def transcribe(self, wav_path: str) -> str:
@@ -30,11 +36,12 @@ class STT:
         if self._model is None:
             self.load()
 
+        # batch_size_s=30s 足够覆盖最长录音（10s），比默认 60s 更省内存
         result = self._model.generate(
             input=wav_path,
             language="auto",
             use_itn=True,
-            batch_size_s=60,
+            batch_size_s=30,
         )
         if not result:
             return ""

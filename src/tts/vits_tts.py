@@ -26,6 +26,7 @@ from vits.text.symbols import symbols
 
 from tts.cache import TTSCache
 from tts import audio_manager
+import memory_monitor
 
 
 def _load_config(config_path: str) -> dict:
@@ -80,7 +81,7 @@ class VitsTTS:
     # ---- 加载 ----
 
     def load(self):
-        """加载 VITS 模型（启动时调用一次）"""
+        """加载 VITS 模型（启动时调用一次），尝试 fp16 以节省内存"""
         _log.info("Loading VITS paimon...")
 
         info = _load_config(self.config)
@@ -97,7 +98,19 @@ class VitsTTS:
         self._model.eval()
 
         utils.load_checkpoint(self.checkpoint, self._model, None)
-        _log.info("VITS paimon loaded")
+
+        # fp16：权重显存减半（~400MB → ~200MB），PyTorch 自动处理混合精度计算
+        self._use_fp16 = False
+        try:
+            self._model = self._model.half()
+            self._use_fp16 = True
+            _log.info("VITS paimon loaded (fp16, ~200MB)")
+        except Exception:
+            _log.info("VITS paimon loaded (fp32, ~400MB)")
+
+        memory_monitor.register_model("VITS Paimon (TTS)", self._model,
+                                      "Paimon 语音合成，22050Hz",
+                                      category="模型")
 
     # ---- 合成 ----
 
@@ -117,6 +130,8 @@ class VitsTTS:
         with torch.no_grad():
             x_tst = stn_tst.unsqueeze(0).to(self._device)
             x_tst_lengths = torch.LongTensor([stn_tst.size(0)]).to(self._device)
+            if self._use_fp16:
+                x_tst = x_tst.half()
             audio = (
                 self._model.infer(
                     x_tst,
@@ -129,6 +144,8 @@ class VitsTTS:
                 .float()
                 .numpy()
             )
+            # 显式释放中间张量，避免碎片化
+            del x_tst, x_tst_lengths
         audio = np.clip(audio, -1.0, 1.0)
 
         self._cache.save(text, audio, self.sample_rate, "vits")

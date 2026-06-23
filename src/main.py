@@ -14,6 +14,10 @@ def _patched_init(self, path, sess_options=None, providers=None, **kw):
         sess_options = ort.SessionOptions()
     sess_options.intra_op_num_threads = 1
     sess_options.inter_op_num_threads = 1
+    # 启用图优化以减少内存碎片，禁用不必要的日志
+    sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_BASIC
+    sess_options.enable_mem_pattern = False  # 减少内存模式缓存
+    sess_options.enable_cpu_mem_arena = False  # 减少内存竞技场开销
     if providers is None:
         providers = ["CPUExecutionProvider"]
     _orig_init(self, path, sess_options=sess_options, providers=providers, **kw)
@@ -33,8 +37,13 @@ logging.basicConfig(
 import log_manager
 log_manager.setup()
 
+# ---- 内存监控 ----
+import memory_monitor
+memory_monitor.start()
+
 # ---- 标准库 & 业务模块 ----
 import asyncio
+import gc
 import threading
 import time
 from datetime import datetime
@@ -153,6 +162,9 @@ async def main():
 
             _log.info("Saved: %s [total=%.1fs]", audio_path, time.time()-t0)
             counter += 1
+
+            # 每轮对话后强制 GC，回收 ONNX/Torch 中间张量
+            gc.collect()
 
 
 if __name__ == "__main__":

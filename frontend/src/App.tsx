@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { Layout, Tabs, Typography, App, Button, Select, Grid } from "antd"
-import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined, SaveOutlined, FileTextOutlined, SoundOutlined } from "@ant-design/icons"
+import { UserOutlined, AudioOutlined, MessageOutlined, ClockCircleOutlined, BookOutlined, SettingOutlined, SaveOutlined, FileTextOutlined, SoundOutlined, DashboardOutlined } from "@ant-design/icons"
 import { api, type User } from "./api"
 import UserTab from "./components/UserTab"
 import VoiceprintTab from "./components/VoiceprintTab"
@@ -12,6 +12,7 @@ import CacheTab from "./components/CacheTab"
 import BackupTab from "./components/BackupTab"
 import LogTab from "./components/LogTab"
 import WakewordTab from "./components/WakewordTab"
+import MemoryMonitorTab from "./components/MemoryMonitorTab"
 
 const { Header, Content } = Layout
 const { useBreakpoint } = Grid
@@ -48,6 +49,7 @@ export default function Root() {
     { key: "backup",     label: "备份恢复",   icon: <SaveOutlined />,        children: <BackupTab /> },
     { key: "logs",       label: "系统日志",   icon: <FileTextOutlined />,    children: <LogTab /> },
     { key: "wakeword",   label: "唤醒词收集", icon: <SoundOutlined />,       children: <WakewordTab /> },
+    { key: "memory-monitor", label: "内存监控", icon: <DashboardOutlined />, children: <MemoryMonitorTab /> },
   ]
 
   const activeContent = tabs.find(t => t.key === activeTab)?.children

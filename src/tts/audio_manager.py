@@ -27,8 +27,23 @@ class AudioManager:
         self._id_counter = 0
         self._lock = threading.Lock()
         self._running = True
+        # VAD 模型缓存（懒加载，避免每次录音都创建 ONNX Session → 内存泄漏）
+        self._vad_model = None
+        self._vad_lock = threading.Lock()
         self._thread = threading.Thread(target=self._play_loop, daemon=True)
         self._thread.start()
+
+    def _get_vad_model(self):
+        """懒加载 VAD ONNX 模型，只创建一次 Session"""
+        if self._vad_model is None:
+            with self._vad_lock:
+                if self._vad_model is None:
+                    self._vad_model = load_silero_vad()
+                    import memory_monitor
+                    memory_monitor.register_model("Silero VAD (ONNX)", "silero_vad.onnx",
+                                                  "语音活动检测，16kHz",
+                                                  category="模型")
+        return self._vad_model
 
     # ---- 播放 ----
 
@@ -61,7 +76,7 @@ class AudioManager:
 
         frames = []
         max_frames = int(RECORD_SAMPLE_RATE * timeout_sec / 512)
-        vad_model = load_silero_vad()
+        vad_model = self._get_vad_model()  # 复用单例缓存的 ONNX Session
 
         for _ in range(max_frames):
             data = stream.read(512, exception_on_overflow=False)

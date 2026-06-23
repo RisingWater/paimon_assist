@@ -38,6 +38,10 @@ def _on_detection(name: str, score: float, timestamp: float, audio: np.ndarray, 
 def create_listener() -> WakeWordListener:
     """创建唤醒词监听器，带音频收集回调"""
     model = WakeWordModel(models=[MODEL_PATH])
+    import memory_monitor
+    memory_monitor.register_model("Paimon WakeWord (ONNX)", MODEL_PATH,
+                                  "唤醒词检测，16kHz ONNX",
+                                  category="模型")
     return WakeWordListener(
         model, threshold=THRESHOLD, debounce=DEBOUNCE,
         on_detection_callback=_on_detection,

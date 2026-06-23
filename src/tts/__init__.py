@@ -25,6 +25,7 @@ def _get():
 
 
 def load():
+    """加载全部 TTS 后端，支持运行时动态切换"""
     _vits.load()
     _http.load()
 

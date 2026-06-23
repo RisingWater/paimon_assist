@@ -5,6 +5,7 @@ import shutil
 import numpy as np
 from config import VOICEPRINT_MODEL, VOICEPRINT_THRESHOLD
 import db
+import memory_monitor
 
 _log = logging.getLogger(__name__)
 _pipeline = None
@@ -34,6 +35,17 @@ def load():
         task=Tasks.speaker_verification,
         model=VOICEPRINT_MODEL,
     )
+    # 注册到内存监控
+    try:
+        if hasattr(_pipeline, "model"):
+            memory_monitor.register_model("ERes2NetV2 (声纹)", _pipeline.model,
+                                          "声纹提取与验证，192维",
+                                          category="模型")
+        else:
+            memory_monitor.register_component("ERes2NetV2 (声纹)", "ModelScope Pipeline",
+                                              size_bytes=0, category="模型")
+    except Exception:
+        pass
     _log.info("Voiceprint model loaded")
 
 

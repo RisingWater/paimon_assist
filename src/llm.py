@@ -1,4 +1,5 @@
 """LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite，支持 Tool Calling"""
+import gc
 import json
 import logging
 import os
@@ -244,6 +245,8 @@ def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
         if user_id:
             _log_to_midterm(user_id, all_tool_names, user_text, reply or "")
 
+        # 强制 GC 回收本轮对话的 history list 和 tool call 中间数据
+        gc.collect()
         return reply or "（无回复）"
     except Exception as e:
         _log.error("LLM chat error: %s", e)

@@ -155,6 +155,13 @@ export const api = {
 
   deleteWakeword: (category: string, filename: string) =>
     fetch(`${BASE}/wakeword/${encodeURIComponent(category)}/${encodeURIComponent(filename)}`, { method: "DELETE" }),
+
+  // Memory monitor
+  getMemoryReport: (): Promise<any> =>
+    fetch(`${BASE}/memory/report`).then((r) => r.json()),
+
+  triggerGc: (): Promise<any> =>
+    fetch(`${BASE}/memory/gc`, { method: "POST" }).then((r) => r.json()),
 }
 
 export interface Reminder {
