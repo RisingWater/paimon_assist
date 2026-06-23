@@ -25,8 +25,17 @@ class STT:
             ncpu=1,  # 单线程推理，降低内存占用
             disable_update=cfg.DISABLE_UPDATE,
         )
-        # 注册到内存监控（SenseVoiceSmall 约 200MB）
-        memory_monitor.register_model("SenseVoiceSmall (STT)", self.model_path,
+        # 注册到内存监控 — 尝试获取 FunASR 内部的 torch 模型来测量真实大小
+        stt_model = self._model
+        try:
+            # FunASR AutoModel 内部结构：model.model 或 model.asr_model
+            if hasattr(self._model, "model"):
+                stt_model = self._model.model
+            elif hasattr(self._model, "asr_model"):
+                stt_model = self._model.asr_model
+        except Exception:
+            pass
+        memory_monitor.register_model("SenseVoiceSmall (STT)", stt_model,
                                       "FunASR 语音转文字",
                                       category="模型")
         _log.info("SenseVoiceSmall loaded")
