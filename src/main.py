@@ -37,8 +37,9 @@ logging.basicConfig(
 from log_manager import log_mgr
 log_mgr.setup()
 
-# ---- 内存监控（tracemalloc 按需启动，避免拖慢正常对话） ----
+# ---- 内存监控（5 帧 tracemalloc，开销可忽略） ----
 from memory_monitor import MemoryMonitor
+MemoryMonitor.instance()._ensure_tracemalloc()
 
 # ---- 标准库 & 业务模块 ----
 import asyncio

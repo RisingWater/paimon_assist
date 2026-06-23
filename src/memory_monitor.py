@@ -55,9 +55,8 @@ class MemoryMonitor:
             return
         try:
             import tracemalloc
-            tracemalloc.start(25)
+            tracemalloc.start(5)  # 5 帧足够定位到文件，开销远小于默认 25
             self._tracemalloc_started = True
-            _log.info("tracemalloc started")
         except Exception:
             pass
 
