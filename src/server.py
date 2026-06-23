@@ -628,7 +628,19 @@ async def api_wakeword_delete(category: str, filename: str):
 @app.get("/api/memory/report")
 async def api_memory_report():
     """获取各模块内存占用报告"""
-    return MemoryMonitor.instance().get_report()
+    try:
+        return MemoryMonitor.instance().get_report()
+    except Exception as e:
+        return {
+            "total_rss": 0,
+            "total_rss_mb": 0,
+            "tracked": [],
+            "tracemalloc": [],
+            "summary": [],
+            "gc_stats": {"counts": [0, 0, 0], "threshold": [700, 10, 10], "details": []},
+            "timestamp": 0,
+            "error": str(e),
+        }
 
 
 @app.post("/api/memory/gc")

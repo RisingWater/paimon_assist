@@ -144,7 +144,7 @@ export default function MemoryMonitorTab() {
     : []
 
   // 饼图数据（过滤掉碎片等占比过小的）
-  const chartData = report?.summary.filter(d => d.size_mb > 1) || []
+  const chartData = report?.summary?.filter(d => d.size_mb > 1) || []
 
   const columns = [
     { title: "模块", dataIndex: "name", key: "name",
