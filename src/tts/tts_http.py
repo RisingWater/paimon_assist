@@ -19,6 +19,9 @@ class HttpTTS:
         self.cache = TTSCache(Path(TTS_CACHE_DIR))
 
     def load(self):
+        import memory_monitor
+        memory_monitor.register_component("HTTP TTS (EasyVoice)", "远程语音合成，无本地模型",
+                                          size_bytes=0, category="TTS")
         _log.info("HTTP TTS ready: %s", TTS_URL)
 
     def synthesize(self, text: str, length_scale: float = 1.0) -> tuple[np.ndarray, int]:

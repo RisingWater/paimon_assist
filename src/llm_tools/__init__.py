@@ -88,3 +88,15 @@ import llm_tools.reminder         # noqa: E402,F401
 import llm_tools.volume           # noqa: E402,F401
 import llm_tools.ask_user         # noqa: E402,F401
 import llm_tools.door             # noqa: E402,F401
+
+# 注册工具注册表到内存监控
+import sys as _sys
+_reg_size = _sys.getsizeof(_registry)
+for k, v in _registry.items():
+    _reg_size += _sys.getsizeof(k) + _sys.getsizeof(str(v.get("schema", "")))
+try:
+    import memory_monitor
+    memory_monitor.register_component(f"Tool 注册表 ({len(_registry)}个)", "所有工具的 function schema",
+                                      size_bytes=_reg_size, category="Tool")
+except Exception:
+    pass

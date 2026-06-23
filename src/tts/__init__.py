@@ -28,6 +28,24 @@ def load():
     """加载全部 TTS 后端，支持运行时动态切换"""
     _vits.load()
     _http.load()
+    # 注册 TTS 缓存（磁盘 WAV 缓存，启动时扫描大小）
+    import memory_monitor
+    import db as _db
+    try:
+        count = _db.cache_count()
+        import os as _os
+        total = 0
+        cache_dir = _vits._cache.cache_dir
+        if _os.path.isdir(cache_dir):
+            for f in _os.listdir(cache_dir):
+                try:
+                    total += _os.path.getsize(_os.path.join(cache_dir, f))
+                except Exception:
+                    pass
+        memory_monitor.register_component("TTS 缓存", f"{count} 条缓存，磁盘 {total/1024/1024:.1f}MB",
+                                          size_bytes=total, category="TTS")
+    except Exception:
+        pass
 
 
 def speak(text: str):

@@ -92,6 +92,11 @@ def setup():
 
     sys.excepthook = _log_excepthook
 
+    # 注册到内存监控
+    import memory_monitor
+    memory_monitor.register_component("日志缓冲", f"内存环形缓冲，最多 {_MAX_MEMORY_ENTRIES} 条",
+                                      size_bytes=0, category="系统")
+
     # 也捕获线程中的未处理异常
     if hasattr(threading, "excepthook"):
         _orig_threadhook = threading.excepthook
@@ -115,6 +120,14 @@ def get_logs(
     """查询内存中最近的日志，支持按级别过滤、关键词搜索、分页"""
     with _lock:
         entries = list(_buffer)
+        # 更新内存监控中的日志缓冲大小
+        try:
+            import sys as _sys
+            buf_size = _sys.getsizeof(_buffer) + sum(_sys.getsizeof(e) for e in entries)
+            import memory_monitor
+            memory_monitor.update_component("日志缓冲", buf_size)
+        except Exception:
+            pass
 
     if level:
         level = level.upper()

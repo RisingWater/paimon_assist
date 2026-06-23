@@ -337,3 +337,15 @@ def _start_midterm_checker():
 
 
 _start_midterm_checker()
+
+# 注册到内存监控
+import sys as _sys
+_mem_size = _sys.getsizeof(memory_summary) + _sys.getsizeof(_midterm_cache)
+for k, v in _midterm_cache.items():
+    _mem_size += _sys.getsizeof(k) + _sys.getsizeof(v)
+try:
+    import memory_monitor
+    memory_monitor.register_component("记忆系统 (Tool)", "长期摘要 + 中期缓存 + 定期检查线程",
+                                      size_bytes=_mem_size, category="Tool")
+except Exception:
+    pass
