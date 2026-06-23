@@ -16,7 +16,7 @@ _http = HttpTTS()
 
 
 def _backend():
-    import settings
+    from settings import settings
     return settings.get("tts_backend")
 
 

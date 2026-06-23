@@ -106,10 +106,10 @@ async def api_add_voiceprint(user_id: int, file: UploadFile = File(...)):
             f.write(content)
 
     # 提取声纹
-    import voiceprint
+    from voiceprint import vp_engine
     try:
-        voiceprint.load()
-        emb = voiceprint.extract(path)
+        vp_engine.load()
+        emb = vp_engine.extract(path)
     except Exception as e:
         raise HTTPException(500, f"声纹提取失败: {e}")
 
@@ -124,7 +124,7 @@ async def api_add_voiceprint(user_id: int, file: UploadFile = File(...)):
 async def api_detect_voiceprint(file: UploadFile = File(...)):
     """上传音频，返回与库中所有声纹的详细相似度"""
     import numpy as np
-    import voiceprint
+    from voiceprint import vp_engine
 
     content = await file.read()
     ts = time.strftime("%Y%m%d_%H%M%S")
@@ -145,8 +145,8 @@ async def api_detect_voiceprint(file: UploadFile = File(...)):
             f.write(content)
 
     try:
-        voiceprint.load()
-        emb = voiceprint.extract(tmp_path)
+        vp_engine.load()
+        emb = vp_engine.extract(tmp_path)
     finally:
         if os.path.exists(tmp_path):
             os.unlink(tmp_path)
@@ -274,7 +274,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/api/chat")
 async def api_chat(req: ChatRequest):
-    import llm
+    from llm import llm
     reply = llm.chat(req.text.strip(), req.user_id, req.speaker)
     return {"reply": reply}
 
@@ -368,40 +368,40 @@ async def api_save_memory(name: str, req: dict):
 
 # ---- 系统配置 ----
 
-import settings as _settings_mod
+from settings import settings as app_settings
 
-_tts_backend = _settings_mod.get("tts_backend")
+_tts_backend = app_settings.get("tts_backend")
 
 
 @app.get("/api/tool-config")
 async def api_get_tool_config():
-    from llm_tools import get_schemas, get_default_silent_tools
-    default_silent = get_default_silent_tools()
-    tools = []
-    for s in get_schemas():
+    from llm_tools import tools as tool_registry
+    default_silent = tool_registry.get_default_silent_tools()
+    tool_list = []
+    for s in tool_registry.get_schemas():
         name = s["function"]["name"]
-        tools.append({
+        tool_list.append({
             "name": name,
             "description": s["function"]["description"],
             "silent_default": name in default_silent,
         })
-    return {"tools": tools, "silent": list(_settings_mod.get_silent_tools())}
+    return {"tools": tool_list, "silent": list(app_settings.get_silent_tools())}
 
 
 @app.put("/api/tool-config")
 async def api_save_tool_config(req: dict):
-    _settings_mod.set_silent_tools(set(req.get("silent", [])))
+    app_settings.set_silent_tools(set(req.get("silent", [])))
     return {"ok": True}
 
 
 @app.get("/api/system-config")
 async def api_get_system_config():
     return {
-        "tts_backend": _settings_mod.get("tts_backend"),
-        "wakeword_enabled": _settings_mod.get("wakeword_enabled"),
-        "wakeword_schedule_enabled": _settings_mod.get("wakeword_schedule_enabled"),
-        "wakeword_start": _settings_mod.get("wakeword_start"),
-        "wakeword_end": _settings_mod.get("wakeword_end"),
+        "tts_backend": app_settings.get("tts_backend"),
+        "wakeword_enabled": app_settings.get("wakeword_enabled"),
+        "wakeword_schedule_enabled": app_settings.get("wakeword_schedule_enabled"),
+        "wakeword_start": app_settings.get("wakeword_start"),
+        "wakeword_end": app_settings.get("wakeword_end"),
     }
 
 
@@ -409,17 +409,17 @@ async def api_get_system_config():
 async def api_save_system_config(req: dict):
     global _tts_backend
     backend = req.get("tts_backend", "vits")
-    _settings_mod.set_config("tts_backend", backend)
+    app_settings.set_config("tts_backend", backend)
     _tts_backend = backend
 
     if "wakeword_enabled" in req:
-        _settings_mod.set_config("wakeword_enabled", bool(req["wakeword_enabled"]))
+        app_settings.set_config("wakeword_enabled", bool(req["wakeword_enabled"]))
     if "wakeword_schedule_enabled" in req:
-        _settings_mod.set_config("wakeword_schedule_enabled", bool(req["wakeword_schedule_enabled"]))
+        app_settings.set_config("wakeword_schedule_enabled", bool(req["wakeword_schedule_enabled"]))
     if "wakeword_start" in req:
-        _settings_mod.set_config("wakeword_start", req["wakeword_start"])
+        app_settings.set_config("wakeword_start", req["wakeword_start"])
     if "wakeword_end" in req:
-        _settings_mod.set_config("wakeword_end", req["wakeword_end"])
+        app_settings.set_config("wakeword_end", req["wakeword_end"])
 
     return {"ok": True, "tts_backend": backend}
 
@@ -523,11 +523,11 @@ async def api_restore_backup(filename: str):
 # ---- 日志查看 ----
 
 from fastapi.responses import PlainTextResponse
-import log_manager as _log_mgr
-import memory_monitor as _mem_mon
+from log_manager import log_mgr
+from memory_monitor import MemoryMonitor
 
 # 启动内存监控
-_mem_mon.start()
+MemoryMonitor.instance()._ensure_tracemalloc()
 
 
 @app.get("/api/logs")
@@ -538,7 +538,7 @@ async def api_get_logs(
     offset: int = 0,
 ):
     """查询内存日志，支持级别过滤、关键词搜索、分页"""
-    return _log_mgr.get_logs(
+    return log_mgr.get_logs(
         level=level or None,
         search=search or None,
         limit=min(limit, 1000),
@@ -549,7 +549,7 @@ async def api_get_logs(
 @app.get("/api/logs/export")
 async def api_export_logs():
     """导出全部日志为纯文本文件"""
-    text = _log_mgr.export_text()
+    text = log_mgr.export_text()
     ts = time.strftime("%Y%m%d_%H%M%S")
     return PlainTextResponse(
         text,
@@ -561,7 +561,7 @@ async def api_export_logs():
 @app.delete("/api/logs")
 async def api_clear_logs():
     """清空内存日志"""
-    _log_mgr.clear()
+    log_mgr.clear()
     return {"ok": True}
 
 
@@ -631,13 +631,13 @@ async def api_wakeword_delete(category: str, filename: str):
 @app.get("/api/memory/report")
 async def api_memory_report():
     """获取各模块内存占用报告"""
-    return _mem_mon.get_report()
+    return MemoryMonitor.instance().get_report()
 
 
 @app.post("/api/memory/gc")
 async def api_memory_gc():
     """手动触发垃圾回收"""
-    return _mem_mon.gc_now()
+    return MemoryMonitor.instance().gc_now()
 
 
 @app.get("/{path:path}")

@@ -62,9 +62,3 @@ class Settings:
 
 # 全局单例
 settings = Settings()
-
-# 向后兼容 — from settings import get / set_config / ...
-get = settings.get
-set_config = settings.set
-get_silent_tools = settings.get_silent_tools
-set_silent_tools = settings.set_silent_tools

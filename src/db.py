@@ -2,12 +2,12 @@
 import os
 import sqlite3
 import numpy as np
-from config import VOICEPRINT_DB
+from config import config
 
 
 def _connect() -> sqlite3.Connection:
-    os.makedirs(os.path.dirname(VOICEPRINT_DB), exist_ok=True)
-    conn = sqlite3.connect(VOICEPRINT_DB, check_same_thread=False)
+    os.makedirs(os.path.dirname(config.VOICEPRINT_DB), exist_ok=True)
+    conn = sqlite3.connect(config.VOICEPRINT_DB, check_same_thread=False)
 
     conn.execute("""
         CREATE TABLE IF NOT EXISTS users (

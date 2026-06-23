@@ -8,7 +8,7 @@ import requests
 import soundfile as sf
 from tts import audio_manager
 
-from config import TTS_URL, TTS_CACHE_DIR
+from config import config
 from tts.cache import TTSCache
 
 _log = logging.getLogger(__name__)
@@ -16,13 +16,13 @@ _log = logging.getLogger(__name__)
 
 class HttpTTS:
     def __init__(self):
-        self.cache = TTSCache(Path(TTS_CACHE_DIR))
+        self.cache = TTSCache(Path(config.TTS_CACHE_DIR))
 
     def load(self):
         import memory_monitor
         memory_monitor.register_component("HTTP TTS (EasyVoice)", "远程语音合成，无本地模型",
                                           size_bytes=0, category="TTS")
-        _log.info("HTTP TTS ready: %s", TTS_URL)
+        _log.info("HTTP TTS ready: %s", config.TTS_URL)
 
     def synthesize(self, text: str, length_scale: float = 1.0) -> tuple[np.ndarray, int]:
         cached = self.cache.get(text, "http")
@@ -32,7 +32,7 @@ class HttpTTS:
         payload = {
             "data": [{"text": text, "voice": "zh-CN-XiaoxiaoNeural", "rate": "0%", "pitch": "0Hz", "volume": "0%"}]
         }
-        resp = requests.post(TTS_URL, json=payload, timeout=30)
+        resp = requests.post(config.TTS_URL, json=payload, timeout=30)
         resp.raise_for_status()
 
         # MP3 → WAV 转换（PyAudio 需要 PCM）

@@ -2,7 +2,7 @@
 import logging
 import requests
 from llm_tools import BaseTool, tools
-from config import DOOR_OPEN_URL, DOOR_OPEN_TOKEN
+from config import config
 
 _log = logging.getLogger(__name__)
 
@@ -17,13 +17,13 @@ class DoorTool(BaseTool):
         )
 
     def execute(self, args: dict) -> str:
-        if not DOOR_OPEN_URL:
-            return "门禁开门未配置（缺少 DOOR_OPEN_URL）"
-        if not DOOR_OPEN_TOKEN:
-            return "门禁开门未配置（缺少 DOOR_OPEN_TOKEN）"
+        if not config.DOOR_OPEN_URL:
+            return "门禁开门未配置（缺少 config.DOOR_OPEN_URL）"
+        if not config.DOOR_OPEN_TOKEN:
+            return "门禁开门未配置（缺少 config.DOOR_OPEN_TOKEN）"
 
         headers = {
-            "Authorization": f"bearer {DOOR_OPEN_TOKEN}",
+            "Authorization": f"bearer {config.DOOR_OPEN_TOKEN}",
             "Accept": "application/json, text/plain, */*",
             "User-Agent": (
                 "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) AppleWebKit/605.1.15 "
@@ -33,7 +33,7 @@ class DoorTool(BaseTool):
             "Referer": "https://servicewechat.com/wx06875950b54784ee/51/page-frame.html",
         }
         try:
-            resp = requests.get(DOOR_OPEN_URL, headers=headers, timeout=10)
+            resp = requests.get(config.DOOR_OPEN_URL, headers=headers, timeout=10)
             resp.raise_for_status()
             data = resp.json()
             if data.get("code") == "00000":

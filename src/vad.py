@@ -4,7 +4,7 @@ import os
 import time
 import wave
 from tts import audio_manager
-from config import MAX_RECORD_SECONDS, VAD_SILENCE_MS
+from config import config
 
 _log = logging.getLogger(__name__)
 RECORDINGS_DIR = "recordings"
@@ -16,7 +16,7 @@ def record(counter: int) -> str:
     返回文件名。
     """
     _log.info("Recording...")
-    audio = audio_manager.get().record(MAX_RECORD_SECONDS, VAD_SILENCE_MS)
+    audio = audio_manager.get().record(config.MAX_RECORD_SECONDS, config.VAD_SILENCE_MS)
 
     all_audio = (audio * 32768.0).astype("<i2")
     duration = len(all_audio) / audio_manager.RECORD_SAMPLE_RATE

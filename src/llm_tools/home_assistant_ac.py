@@ -2,12 +2,12 @@
 import logging
 import requests
 from llm_tools import BaseTool, tools
-from config import HOME_ASSISTANT_URL, HOME_ASSISTANT_TOKEN
+from config import config
 
 _log = logging.getLogger(__name__)
 
 _CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
-_HEADERS = {"Authorization": f"Bearer {HOME_ASSISTANT_TOKEN}", "Content-Type": "application/json"}
+_HEADERS = {"Authorization": f"Bearer {config.HOME_ASSISTANT_TOKEN}", "Content-Type": "application/json"}
 
 
 def _cn(n: int) -> str:
@@ -24,7 +24,7 @@ def _cn(n: int) -> str:
 
 
 def _call_service(domain: str, service: str, entity_id: str, data: dict | None = None):
-    url = f"{HOME_ASSISTANT_URL}/api/services/{domain}/{service}"
+    url = f"{config.HOME_ASSISTANT_URL}/api/services/{domain}/{service}"
     body = {"entity_id": entity_id}
     if data: body.update(data)
     resp = requests.post(url, json=body, headers=_HEADERS, timeout=10)
@@ -33,7 +33,7 @@ def _call_service(domain: str, service: str, entity_id: str, data: dict | None =
 
 
 def _list_climate_entities() -> list[dict]:
-    resp = requests.get(f"{HOME_ASSISTANT_URL}/api/states", headers=_HEADERS, timeout=10)
+    resp = requests.get(f"{config.HOME_ASSISTANT_URL}/api/states", headers=_HEADERS, timeout=10)
     resp.raise_for_status()
     return [
         {

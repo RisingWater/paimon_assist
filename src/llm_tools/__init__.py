@@ -109,14 +109,6 @@ class ToolRegistry(MemoryTracked):
 
 tools = ToolRegistry()
 
-# 向后兼容别名（旧代码 from llm_tools import register / get_schemas / execute ...）
-register = tools.register
-get_schemas = tools.get_schemas
-execute = tools.execute
-get_memory_value = tools.get_memory_value
-get_default_silent_tools = tools.get_default_silent_tools
-is_final = tools.is_final
-
 
 # ============================================================
 # 导入所有工具模块（触发注册）

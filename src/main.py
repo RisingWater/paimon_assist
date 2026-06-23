@@ -34,12 +34,12 @@ logging.basicConfig(
 )
 
 # ---- 日志内存缓冲（Web UI 查看用） ----
-import log_manager
-log_manager.setup()
+from log_manager import log_mgr
+log_mgr.setup()
 
 # ---- 内存监控 ----
-import memory_monitor
-memory_monitor.start()
+from memory_monitor import MemoryMonitor
+MemoryMonitor.instance()._ensure_tracemalloc()
 
 # ---- 标准库 & 业务模块 ----
 import asyncio
@@ -47,16 +47,16 @@ import gc
 import threading
 import time
 from datetime import datetime
-from config import THRESHOLD, VOICEPRINT_THRESHOLD
-import settings
+from config import config
+from settings import settings
 
 _log = logging.getLogger("main")
 import wakeword as ww
 import tts
 import vad
-import voiceprint
+from voiceprint import vp_engine
 from stt import stt
-import llm
+from llm import llm
 from tts import audio_manager
 import reminder_thread
 
@@ -74,12 +74,12 @@ async def main():
     threading.Thread(target=_start_webserver, daemon=True).start()
 
     stt.load()
-    voiceprint.load()
+    vp_engine.load()
     tts.load()
     audio_manager.init()
     reminder_thread.start()
 
-    _log.info("Threshold=%.2f Voiceprint=%.2f", THRESHOLD, VOICEPRINT_THRESHOLD)
+    _log.info("Threshold=%.2f Voiceprint=%.2f", config.THRESHOLD, config.VOICEPRINT_THRESHOLD)
     _log.info("Listening... Ctrl+C to stop")
 
     counter = 0
@@ -110,7 +110,7 @@ async def main():
             filename = await asyncio.to_thread(vad.record, counter)
 
             # 2. 声纹验证
-            user_id, info, audio_path, vp_id = await asyncio.to_thread(voiceprint.verify, filename)
+            user_id, info, audio_path, vp_id = await asyncio.to_thread(vp_engine.verify, filename)
             if info.startswith("enrolled:"):
                 speaker = ""
                 _log.info("Voiceprint: ENROLLED (user_id=%d)", user_id)

@@ -179,9 +179,3 @@ class LogManager:
 
 # 全局单例
 log_mgr = LogManager()
-
-# 向后兼容
-setup = log_mgr.setup
-get_logs = log_mgr.get_logs
-export_text = log_mgr.export_text
-clear = log_mgr.clear

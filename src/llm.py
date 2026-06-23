@@ -6,13 +6,12 @@ import os
 from datetime import datetime, timedelta
 import requests
 import threading
-from config import DEEPSEEK_API_KEY, DEEPSEEK_URL, DEEPSEEK_MODEL, DEFAULT_CITY
+from config import config
 import db
-import llm_tools
-import llm_tools.memory as _mem_mod
-from llm_tools import get_memory_value
+from llm_tools import tools
+import tools.memory as _mem_mod
 import tts as _tts_mod
-import settings
+from settings import settings
 from memory_monitor import MemoryTracked
 
 _log = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ _DEFAULT_RULES_PREFIX = (
     "5. 使用口语化的表达方式 "
     "6. 数字用中文写（二十五而不是25），语音模型无法念阿拉伯数字 "
     "7. 如果用户询问天气但没有指定城市，默认查询"
-    f" {DEFAULT_CITY} 的天气。使用 get_weather 工具，date 参数用 today 或 tomorrow。"
+    f" {config.DEFAULT_CITY} 的天气。使用 get_weather 工具，date 参数用 today 或 tomorrow。"
     "8. 如果用户询问煜乔的位置、在哪里、定位，使用 get_yuqiao_location 工具；"
     "如果询问煜乔的通话器电量、还剩多少电，使用 get_yuqiao_power 工具。"
     "9. web_search 仅用于查询最新消息、实时数据、新闻事件等超出你知识范围的内容。"
@@ -86,7 +85,7 @@ class LLM(MemoryTracked):
             db.append_message(user_id, "user", content)
 
         try:
-            tools = llm_tools.get_schemas()
+            tools = tools.get_schemas()
             tool_prefix = ""
             all_tool_names: list[str] = []
 
@@ -128,10 +127,10 @@ class LLM(MemoryTracked):
                     all_tool_names.append(fn_name)
                     fn_args = json.loads(tc["function"]["arguments"])
                     _log.info("Tool call: %s(%s)", fn_name, fn_args)
-                    result = llm_tools.execute(fn_name, fn_args)
+                    result = tools.execute(fn_name, fn_args)
                     _log.info("Tool result: %s", result[:200] if result else "(empty)")
 
-                    if llm_tools.is_final(fn_name):
+                    if tools.is_final(fn_name):
                         is_error = "失败" in result or "错误" in result
                         if not is_error:
                             if user_id:
@@ -173,7 +172,7 @@ class LLM(MemoryTracked):
 
     @staticmethod
     def _load_silent_tools() -> set[str]:
-        return llm_tools.get_default_silent_tools() | settings.get_silent_tools()
+        return tools.get_default_silent_tools() | settings.get_silent_tools()
 
     @staticmethod
     def _build_system() -> dict:
@@ -219,7 +218,7 @@ class LLM(MemoryTracked):
         if user_id <= 0:
             return
         for name in tool_calls_during_chat:
-            if get_memory_value(name) == 0:
+            if tools.get_memory_value(name) == 0:
                 return
         ts = datetime.now().strftime("%m-%d %H:%M")
         _mem_mod.append_to_midterm(user_id, f"[{ts}] 问：{user_text} | 答：{reply[:200]}")
@@ -227,7 +226,7 @@ class LLM(MemoryTracked):
     @staticmethod
     def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
         body = {
-            "model": DEEPSEEK_MODEL,
+            "model": config.DEEPSEEK_MODEL,
             "messages": messages,
             "max_tokens": 200,
             "temperature": 0.7,
@@ -236,9 +235,9 @@ class LLM(MemoryTracked):
             body["tools"] = tools
 
         resp = requests.post(
-            DEEPSEEK_URL,
+            config.DEEPSEEK_URL,
             headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Authorization": f"Bearer {config.DEEPSEEK_API_KEY}",
                 "Content-Type": "application/json",
             },
             json=body,
@@ -252,6 +251,3 @@ class LLM(MemoryTracked):
 
 # 全局单例
 llm = LLM()
-
-# 向后兼容
-chat = llm.chat

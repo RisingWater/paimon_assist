@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
-from config import TTS_CACHE_DIR
+from config import config
 import tts as _tts_mod
 from tts import audio_manager
 
@@ -39,7 +39,7 @@ async def text_to_speech(req: TTSRequest):
     import soundfile as sf
     from pathlib import Path
     from tts.cache import TTSCache
-    cache = TTSCache(Path(TTS_CACHE_DIR))
+    cache = TTSCache(Path(config.TTS_CACHE_DIR))
 
     backend = _tts_mod._backend()
     cached_hit = cache.get(text, backend)

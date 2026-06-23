@@ -281,15 +281,11 @@ class MemoryTracked:
 
 
 # ============================================================
-# 向后兼容 — 模块级函数别名
+# 工具函数 — 用于注册非 MemoryTracked 子类的外部资源
 # ============================================================
 
-def start():
-    MemoryMonitor.instance()._ensure_tracemalloc()
-
-
 def register_model(name: str, model_or_path, description: str = "", category: str = "模型"):
-    """向后兼容：手动注册模型（非 MemoryTracked 子类用）"""
+    """手动注册模型（如第三方库的 ONNX 模型，无法继承 MemoryTracked 时使用）"""
     class _ModelRef(MemoryTracked):
         def __init__(self):
             super().__init__(name=name, description=description, category=category)
@@ -306,7 +302,7 @@ def register_model(name: str, model_or_path, description: str = "", category: st
 
 
 def register_component(name: str, description: str = "", size_bytes: int = 0, category: str = "组件"):
-    """向后兼容：手动注册组件（非 MemoryTracked 子类用）"""
+    """手动注册非模型组件（缓存、缓冲等）"""
     class _Comp(MemoryTracked):
         def __init__(self):
             super().__init__(name=name, description=description, category=category)
@@ -319,15 +315,7 @@ def register_component(name: str, description: str = "", size_bytes: int = 0, ca
 
 
 def update_component(name: str, size_bytes: int):
-    """向后兼容：更新组件大小"""
+    """更新组件大小"""
     tracked = MemoryMonitor.instance()._tracked.get(name)
     if tracked and hasattr(tracked, "_size"):
         tracked._size = size_bytes
-
-
-def get_report() -> dict:
-    return MemoryMonitor.instance().get_report()
-
-
-def gc_now() -> dict:
-    return MemoryMonitor.instance().gc_now()
