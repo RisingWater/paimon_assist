@@ -12,6 +12,18 @@ interface MemoryItem {
   description?: string
 }
 
+interface MapsInfo {
+  pss_mb: number
+  private_dirty_mb: number
+  private_clean_mb: number
+  shared_mb: number
+  anonymous_mb: number
+  libraries_mb: number
+  heap_mb: number
+  stack_mb: number
+  available: boolean
+}
+
 interface MemoryReport {
   total_rss: number
   total_rss_mb: number
@@ -19,6 +31,7 @@ interface MemoryReport {
   tracemalloc: MemoryItem[]
   summary: MemoryItem[]
   gc_stats: { counts: number[]; threshold: number[]; details: { gen: number; collections: number; collected: number; uncollectable: number }[] }
+  maps_info: MapsInfo
   timestamp: number
 }
 
@@ -204,6 +217,20 @@ export default function MemoryMonitorTab() {
           </Card>
         </Col>
       </Row>
+
+      {/* Linux 内存映射分析 */}
+      {report?.maps_info?.available && (
+        <Card size="small" title="内存映射分析（/proc/self/smaps）" style={{ marginBottom: 16 }}>
+          <Row gutter={[12, 8]}>
+            <Col xs={12} sm={4}><Statistic title="PSS 总量" value={report.maps_info.pss_mb} suffix="MB" precision={1} /></Col>
+            <Col xs={12} sm={4}><Statistic title="私有脏页" value={report.maps_info.private_dirty_mb} suffix="MB" precision={1} /></Col>
+            <Col xs={12} sm={4}><Statistic title="匿名内存" value={report.maps_info.anonymous_mb} suffix="MB" precision={1} /></Col>
+            <Col xs={12} sm={4}><Statistic title="共享库(.so)" value={report.maps_info.libraries_mb} suffix="MB" precision={1} /></Col>
+            <Col xs={12} sm={4}><Statistic title="堆" value={report.maps_info.heap_mb} suffix="MB" precision={1} /></Col>
+            <Col xs={12} sm={4}><Statistic title="共享内存" value={report.maps_info.shared_mb} suffix="MB" precision={1} /></Col>
+          </Row>
+        </Card>
+      )}
 
       {/* 饼图 + 自动刷新 */}
       <Card
