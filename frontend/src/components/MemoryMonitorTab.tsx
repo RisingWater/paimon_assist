@@ -15,11 +15,10 @@ interface MemoryItem {
 interface MemoryReport {
   total_rss: number
   total_rss_mb: number
-  models: MemoryItem[]
-  components: MemoryItem[]
+  tracked: MemoryItem[]
   tracemalloc: MemoryItem[]
   summary: MemoryItem[]
-  gc_stats: { collections?: number; collected?: number }[]
+  gc_stats: { counts: number[]; threshold: number[]; details: { gen: number; collections: number; collected: number; uncollectable: number }[] }
   timestamp: number
 }
 
@@ -186,7 +185,7 @@ export default function MemoryMonitorTab() {
         </Col>
         <Col xs={12} sm={6}>
           <Card size="small">
-            <Statistic title="模型数量" value={report?.models.length ?? "-"} />
+            <Statistic title="已追踪模块" value={report?.tracked?.length ?? "-"} />
           </Card>
         </Col>
         <Col xs={12} sm={6}>
