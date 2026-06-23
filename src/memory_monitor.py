@@ -175,56 +175,44 @@ class MemoryMonitor:
     # ---- /proc/self/smaps 分析（定位未追踪的内存大头） ----
 
     def _memory_maps(self) -> dict:
-        """读 /proc/self/smaps，按类别汇总内存映射，返回 MB 单位"""
+        """读 /proc/self/smaps_rollup，返回进程级内存汇总（MB）"""
         result = {"pss_mb": 0, "private_clean_mb": 0, "private_dirty_mb": 0,
                   "shared_mb": 0, "anonymous_mb": 0, "libraries_mb": 0,
                   "heap_mb": 0, "stack_mb": 0, "available": False}
         try:
-            with open(f"/proc/{os.getpid()}/smaps", "r") as f:
+            with open(f"/proc/{os.getpid()}/smaps_rollup", "r") as f:
                 content = f.read()
+            result["available"] = True
+            for line in content.split("\n"):
+                if ":" in line:
+                    key, val = line.split(":", 1)
+                    key = key.strip()
+                    kb = int(val.strip().split()[0])
+                    if key == "Pss":            result["pss_mb"] = kb / 1024
+                    elif key == "Private_Clean": result["private_clean_mb"] = kb / 1024
+                    elif key == "Private_Dirty": result["private_dirty_mb"] = kb / 1024
+                    elif key == "Anonymous":     result["anonymous_mb"] = kb / 1024
+                    elif key == "Shared_Clean" or key == "Shared_Dirty":
+                        result["shared_mb"] += kb / 1024
         except Exception:
-            return result
-
-        result["available"] = True
-        current = {}
-        for line in content.split("\n"):
-            if not line.strip():
-                continue
-            # 新的映射段头：地址范围 + perms + offset + dev + inode + pathname
-            if not line.startswith(("Pss:", "Rss:", "Private_", "Shared_", "Size:", "Referenced:", "Anonymous:", "Swap", "Locked", "Kernel", "THP", "VmFlags")):
-                # 累计上一段
-                self._classify_map(current, result)
-                current = {"path": line.split()[-1] if len(line.split()) > 5 else ""}
-            else:
-                key, val = line.split(":", 1)
-                current[key.strip()] = int(val.strip().split()[0])  # kB
-
-        self._classify_map(current, result)
+            pass
+        # 尝试获取堆和库大小（从完整 smaps 中只取这两项）
+        try:
+            with open(f"/proc/{os.getpid()}/smaps", "r") as f:
+                in_heap = in_stack = False
+                for line in f:
+                    if '[heap]' in line: in_heap = True
+                    elif '[stack' in line: in_stack = True
+                    elif line.startswith(('7', 'f')) and line.strip().endswith(('.so', '.so.[0-9]')): in_heap = in_stack = False  # library
+                    elif 'Pss:' in line and in_heap:
+                        result["heap_mb"] += int(line.split()[1]) / 1024; in_heap = False
+                    elif 'Pss:' in line and in_stack:
+                        result["stack_mb"] += int(line.split()[1]) / 1024; in_stack = False
+                    elif not line.strip():
+                        in_heap = in_stack = False
+        except Exception:
+            pass
         return result
-
-    def _classify_map(self, m: dict, result: dict):
-        if not m:
-            return
-        # smaps 的 key 是 split(":", 1)[0].strip()，不带冒号
-        pss = m.get("Pss", 0)
-        priv_dirty = m.get("Private_Dirty", 0)
-        priv_clean = m.get("Private_Clean", 0)
-        shared = m.get("Shared_Clean", 0) + m.get("Shared_Dirty", 0)
-        anon = m.get("Anonymous", 0)
-        path = m.get("path", "")
-
-        result["pss_mb"] += pss / 1024
-        result["private_dirty_mb"] += priv_dirty / 1024
-        result["private_clean_mb"] += priv_clean / 1024
-        result["shared_mb"] += shared / 1024
-        result["anonymous_mb"] += anon / 1024
-
-        if "[heap]" in path:
-            result["heap_mb"] += pss / 1024
-        elif "[stack" in path:
-            result["stack_mb"] += pss / 1024
-        elif path.endswith(".so") or ".so." in path:
-            result["libraries_mb"] += pss / 1024
 
     # ---- tracemalloc 内部分析 ----
 
