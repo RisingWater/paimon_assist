@@ -32,7 +32,7 @@ class _MemoryHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord):
         try:
-            self._mgr._append_record(record)
+            self._mgr._append_record(record, self.format(record))
         except Exception:
             self.handleError(record)
 
@@ -110,7 +110,7 @@ class LogManager:
 
     # ---- 内部 ----
 
-    def _append_record(self, record: logging.LogRecord):
+    def _append_record(self, record: logging.LogRecord, msg: str):
         with self._lock:
             self._counter += 1
             self._buffer.append({
@@ -118,7 +118,7 @@ class LogManager:
                 "time": _format_time(record.created),
                 "level": record.levelname,
                 "name": record.name,
-                "message": self.format(record),
+                "message": msg,
             })
 
     # ---- 查询 ----

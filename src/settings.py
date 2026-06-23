@@ -1,4 +1,5 @@
 """统一配置读写 — Settings 单例管理 settings/settings.json"""
+from __future__ import annotations
 import json
 import logging
 import os
