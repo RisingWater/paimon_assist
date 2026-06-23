@@ -1,8 +1,8 @@
 """配置 — Config 单例从 .env 加载全部可调参数
 
 用法:
-    from config import config
-    api_key = config.DEEPSEEK_API_KEY
+    from config import cfg
+    api_key = cfg.DEEPSEEK_API_KEY
 """
 import os
 from dotenv import load_dotenv
@@ -76,4 +76,4 @@ class Config:
 
 
 # 全局单例
-config = Config()
+cfg = Config()

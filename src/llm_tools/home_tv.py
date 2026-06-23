@@ -2,22 +2,22 @@
 import logging
 import requests
 from llm_tools import BaseTool, tools
-from config import config
+from config import cfg
 
 _log = logging.getLogger(__name__)
 
-_HEADERS = {"Authorization": f"Bearer {config.HOME_ASSISTANT_TOKEN}", "Content-Type": "application/json"}
+_HEADERS = {"Authorization": f"Bearer {cfg.HOME_ASSISTANT_TOKEN}", "Content-Type": "application/json"}
 _MITV_PREFIX = "xiaomi_cn_mitv"
 
 
 def _press_button(entity_id: str):
-    url = f"{config.HOME_ASSISTANT_URL}/api/services/button/press"
+    url = f"{cfg.HOME_ASSISTANT_URL}/api/services/button/press"
     resp = requests.post(url, json={"entity_id": entity_id}, headers=_HEADERS, timeout=10)
     resp.raise_for_status()
 
 
 def _find_tv_button(keyword: str) -> str | None:
-    resp = requests.get(f"{config.HOME_ASSISTANT_URL}/api/states", headers=_HEADERS, timeout=10)
+    resp = requests.get(f"{cfg.HOME_ASSISTANT_URL}/api/states", headers=_HEADERS, timeout=10)
     resp.raise_for_status()
     for s in resp.json():
         eid = s["entity_id"]
@@ -27,7 +27,7 @@ def _find_tv_button(keyword: str) -> str | None:
 
 
 def _is_audio_mode() -> bool | None:
-    resp = requests.get(f"{config.HOME_ASSISTANT_URL}/api/states", headers=_HEADERS, timeout=10)
+    resp = requests.get(f"{cfg.HOME_ASSISTANT_URL}/api/states", headers=_HEADERS, timeout=10)
     resp.raise_for_status()
     for s in resp.json():
         eid = s["entity_id"]

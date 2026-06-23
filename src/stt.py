@@ -3,7 +3,7 @@ import logging
 import re
 from funasr import AutoModel
 from funasr.utils.postprocess_utils import rich_transcription_postprocess
-from config import config
+from config import cfg
 import memory_monitor
 
 _log = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class STT:
             model=self.model_path,
             device="cpu",
             ncpu=1,  # 单线程推理，降低内存占用
-            disable_update=config.DISABLE_UPDATE,
+            disable_update=cfg.DISABLE_UPDATE,
         )
         # 注册到内存监控（SenseVoiceSmall 约 200MB）
         memory_monitor.register_model("SenseVoiceSmall (STT)", self.model_path,

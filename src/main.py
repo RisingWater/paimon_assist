@@ -47,7 +47,7 @@ import gc
 import threading
 import time
 from datetime import datetime
-from config import config
+from config import cfg
 from settings import settings
 
 _log = logging.getLogger("main")
@@ -79,7 +79,7 @@ async def main():
     audio_manager.init()
     reminder_thread.start()
 
-    _log.info("Threshold=%.2f Voiceprint=%.2f", config.THRESHOLD, config.VOICEPRINT_THRESHOLD)
+    _log.info("Threshold=%.2f Voiceprint=%.2f", cfg.THRESHOLD, cfg.VOICEPRINT_THRESHOLD)
     _log.info("Listening... Ctrl+C to stop")
 
     counter = 0

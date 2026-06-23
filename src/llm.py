@@ -6,7 +6,7 @@ import os
 from datetime import datetime, timedelta
 import requests
 import threading
-from config import config
+from config import cfg
 import db
 from llm_tools import tools
 import tools.memory as _mem_mod
@@ -35,7 +35,7 @@ _DEFAULT_RULES_PREFIX = (
     "5. 使用口语化的表达方式 "
     "6. 数字用中文写（二十五而不是25），语音模型无法念阿拉伯数字 "
     "7. 如果用户询问天气但没有指定城市，默认查询"
-    f" {config.DEFAULT_CITY} 的天气。使用 get_weather 工具，date 参数用 today 或 tomorrow。"
+    f" {cfg.DEFAULT_CITY} 的天气。使用 get_weather 工具，date 参数用 today 或 tomorrow。"
     "8. 如果用户询问煜乔的位置、在哪里、定位，使用 get_yuqiao_location 工具；"
     "如果询问煜乔的通话器电量、还剩多少电，使用 get_yuqiao_power 工具。"
     "9. web_search 仅用于查询最新消息、实时数据、新闻事件等超出你知识范围的内容。"
@@ -226,7 +226,7 @@ class LLM(MemoryTracked):
     @staticmethod
     def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
         body = {
-            "model": config.DEEPSEEK_MODEL,
+            "model": cfg.DEEPSEEK_MODEL,
             "messages": messages,
             "max_tokens": 200,
             "temperature": 0.7,
@@ -235,9 +235,9 @@ class LLM(MemoryTracked):
             body["tools"] = tools
 
         resp = requests.post(
-            config.DEEPSEEK_URL,
+            cfg.DEEPSEEK_URL,
             headers={
-                "Authorization": f"Bearer {config.DEEPSEEK_API_KEY}",
+                "Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}",
                 "Content-Type": "application/json",
             },
             json=body,

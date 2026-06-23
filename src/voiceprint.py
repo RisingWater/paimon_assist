@@ -3,7 +3,7 @@ import logging
 import os
 import shutil
 import numpy as np
-from config import config
+from config import cfg
 import db
 from memory_monitor import MemoryTracked
 
@@ -54,7 +54,7 @@ class VoiceprintEngine(MemoryTracked):
         _log.info("Loading voiceprint model...")
         self._pipeline = pipeline(
             task=Tasks.speaker_verification,
-            model=config.VOICEPRINT_MODEL,
+            model=cfg.VOICEPRINT_MODEL,
         )
         _log.info("Voiceprint model loaded")
 

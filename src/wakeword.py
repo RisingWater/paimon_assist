@@ -8,7 +8,7 @@ import wave
 import numpy as np
 from livekit.wakeword import WakeWordModel, WakeWordListener
 
-from config import config
+from config import cfg
 
 _log = logging.getLogger(__name__)
 
@@ -37,13 +37,13 @@ def _on_detection(name: str, score: float, timestamp: float, audio: np.ndarray, 
 
 def create_listener() -> WakeWordListener:
     """创建唤醒词监听器，带音频收集回调"""
-    model = WakeWordModel(models=[config.MODEL_PATH])
+    model = WakeWordModel(models=[cfg.MODEL_PATH])
     import memory_monitor
-    memory_monitor.register_model("Paimon WakeWord (ONNX)", config.MODEL_PATH,
+    memory_monitor.register_model("Paimon WakeWord (ONNX)", cfg.MODEL_PATH,
                                   "唤醒词检测，16kHz ONNX",
                                   category="模型")
     return WakeWordListener(
-        model, threshold=config.THRESHOLD, debounce=config.DEBOUNCE,
+        model, threshold=cfg.THRESHOLD, debounce=cfg.DEBOUNCE,
         on_detection_callback=_on_detection,
     )
 

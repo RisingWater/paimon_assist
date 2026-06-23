@@ -2,7 +2,7 @@
 import logging
 import requests
 from llm_tools import BaseTool, tools
-from config import config
+from config import cfg
 
 _log = logging.getLogger(__name__)
 
@@ -22,17 +22,17 @@ def _new_session() -> requests.Session:
     s = requests.Session()
     s.headers.update(_BASE_HEADERS)
     s.headers.update({
-        "authority": config.QB_LOCATION_AUTHORITY,
-        "origin": config.QB_LOCATION_URL,
-        "referer": f"{config.QB_LOCATION_URL}/login",
+        "authority": cfg.QB_LOCATION_AUTHORITY,
+        "origin": cfg.QB_LOCATION_URL,
+        "referer": f"{cfg.QB_LOCATION_URL}/login",
     })
     return s
 
 
 def _login(session: requests.Session) -> bool:
     resp = session.post(
-        f"{config.QB_LOCATION_URL}/api/sys/loginout/login",
-        json={"loginName": config.QB_LOCATION_USERNAME, "password": QB_LOCATION_PASSWORD},
+        f"{cfg.QB_LOCATION_URL}/api/sys/loginout/login",
+        json={"loginName": cfg.QB_LOCATION_USERNAME, "password": QB_LOCATION_PASSWORD},
         timeout=10,
     )
     data = resp.json()
@@ -45,7 +45,7 @@ def _login(session: requests.Session) -> bool:
 
 def _get_devices(session: requests.Session) -> list[dict]:
     resp = session.get(
-        f"{config.QB_LOCATION_URL}/api/device/locationManager/getOfficeDeviceTreeData",
+        f"{cfg.QB_LOCATION_URL}/api/device/locationManager/getOfficeDeviceTreeData",
         params={"size": 100, "current": 1, "stateType": "", "imei": "", "officeId": "", "excludeLbs": 0},
         timeout=10,
     )
@@ -57,7 +57,7 @@ def _get_devices(session: requests.Session) -> list[dict]:
 
 def _get_address(session: requests.Session, device: dict) -> str | None:
     detail = session.post(
-        f"{config.QB_LOCATION_URL}/api/device/locationManager/getCurrPointInfoAll",
+        f"{cfg.QB_LOCATION_URL}/api/device/locationManager/getCurrPointInfoAll",
         json={"deviceIdList": [device["id"]], "excludeLbs": 1},
         timeout=10,
     )
@@ -67,7 +67,7 @@ def _get_address(session: requests.Session, device: dict) -> str | None:
     model_id = detail_data["data"][0].get("modelId")
 
     addr = session.post(
-        f"{config.QB_LOCATION_URL}/api/device/locationManager/batchAddress",
+        f"{cfg.QB_LOCATION_URL}/api/device/locationManager/batchAddress",
         json={"pointList": [{
             "lat": device["latitude"], "lon": device["longitude"],
             "infoType": device.get("infoType", 3), "modelId": model_id,

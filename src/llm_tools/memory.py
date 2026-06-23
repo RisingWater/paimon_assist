@@ -91,13 +91,13 @@ class MemoryManager(MemoryTracked):
             if not lines:
                 return
 
-            from config import config
+            from config import cfg
             prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键关系：\n" + "\n".join(lines)
             resp = requests.post(
-                config.DEEPSEEK_URL,
-                headers={"Authorization": f"Bearer {config.DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+                cfg.DEEPSEEK_URL,
+                headers={"Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "model": DEEPSEEK_MODEL,
+                    "model": cfg.DEEPSEEK_MODEL,
                     "messages": [
                         {"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
                         {"role": "user", "content": prompt},
@@ -207,13 +207,13 @@ class MemoryManager(MemoryTracked):
             self._midterm_cache[user_id] = ""
             return
         try:
-            from config import config
+            from config import cfg
             prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键信息：\n" + "\n".join(facts)
             resp = requests.post(
-                config.DEEPSEEK_URL,
-                headers={"Authorization": f"Bearer {config.DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
+                cfg.DEEPSEEK_URL,
+                headers={"Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
                 json={
-                    "model": DEEPSEEK_MODEL,
+                    "model": cfg.DEEPSEEK_MODEL,
                     "messages": [{"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
                                  {"role": "user", "content": prompt}],
                     "max_tokens": 100, "temperature": 0.3,

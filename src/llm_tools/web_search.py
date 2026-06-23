@@ -3,7 +3,7 @@ import os
 import subprocess
 import logging
 from llm_tools import BaseTool, tools
-from config import config
+from config import cfg
 
 _log = logging.getLogger(__name__)
 
@@ -35,7 +35,7 @@ class WebSearchTool(BaseTool):
         try:
             result = subprocess.run(
                 [
-                    config.CLAUDE_BIN, "-p", prompt,
+                    cfg.CLAUDE_BIN, "-p", prompt,
                     "--output-format", "text",
                     "--allowedTools", "WebSearch,WebFetch",
                     "--permission-mode", "bypassPermissions",
