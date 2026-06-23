@@ -25,17 +25,9 @@ class STT:
             ncpu=1,  # 单线程推理，降低内存占用
             disable_update=cfg.DISABLE_UPDATE,
         )
-        # fp16: 遍历 FunASR 内部所有 torch 子模型，减半内存 (~900MB → ~450MB)
+        # 注册到内存监控 — 尝试获取 FunASR 内部的 torch 模型来测量真实大小
         stt_model = self._model
         try:
-            import torch
-            for attr in dir(self._model):
-                obj = getattr(self._model, attr)
-                if isinstance(obj, torch.nn.Module):
-                    try:
-                        obj.half()
-                    except Exception:
-                        pass
             if hasattr(self._model, "model"):
                 stt_model = self._model.model
             elif hasattr(self._model, "asr_model"):
