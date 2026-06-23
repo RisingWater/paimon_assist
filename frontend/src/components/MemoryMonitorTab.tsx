@@ -139,12 +139,10 @@ export default function MemoryMonitorTab() {
   }, [autoRefresh, fetchReport])
 
   // 合并详细列表
-  const allItems: MemoryItem[] = report
-    ? [...report.summary]
-    : []
+  const allItems: MemoryItem[] = report?.summary ?? []
 
   // 饼图数据（过滤掉碎片等占比过小的）
-  const chartData = report?.summary?.filter(d => d.size_mb > 1) || []
+  const chartData = (report?.summary ?? []).filter(d => d.size_mb > 1)
 
   const columns = [
     { title: "模块", dataIndex: "name", key: "name",
