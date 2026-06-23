@@ -1,134 +1,174 @@
-"""内存监控 — 追踪各模块内存占用，供 Web UI 展示
+"""内存监控 — MemoryTracked 基类 + MemoryMonitor 单例管理器
 
-使用 tracemalloc 追踪 Python 层分配，psutil 获取进程级 RSS。
-模型通过 register_model() 注册，自动测量参数/权重内存。
-
-模块内存分类规则：
-  - 优先匹配显式注册的模型（VITS、SenseVoice、声纹等）
-  - 剩余归入 tracemalloc 文件路径分组
+用法:
+  1. 继承 MemoryTracked，super().__init__() 自动注册到监控
+  2. 子类可重写 _mem_size() 返回自身内存占用
+  3. MemoryMonitor.instance().get_report() 获取完整报告
+  4. MemoryMonitor.instance().gc_now() 手动触发 GC
 """
 
 import gc
 import logging
 import os
+import sys
 import threading
 import time
+from typing import Optional
 
 _log = logging.getLogger(__name__)
 
-# ---- 状态 ----
-_started = False
-_lock = threading.Lock()
 
-# 显式注册的模型：name -> {description, model_obj, size_bytes, category}
-_models: dict[str, dict] = {}
+# ============================================================
+# MemoryMonitor — 单例管理器
+# ============================================================
 
-# 其他组件（非模型）：name -> {description, size_bytes}
-_components: dict[str, dict] = {}
+class MemoryMonitor:
+    """内存监控单例，管理所有 MemoryTracked 实例的追踪"""
 
-# 上一次快照（用于增量）
-_last_snapshot_time = 0.0
-_last_snapshot: dict | None = None
-SNAPSHOT_CACHE_SEC = 2  # 缓存 2 秒，避免高频刷新时重复计算
+    _instance: Optional["MemoryMonitor"] = None
+    _lock = threading.Lock()
 
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._init()
+        return cls._instance
 
-def start():
-    """启动 tracemalloc（只调一次）"""
-    global _started
-    if _started:
-        return
-    import tracemalloc
-    tracemalloc.start(25)  # 保留 25 帧，足够定位到模块
-    _started = True
-    _log.info("Memory monitor started (tracemalloc)")
+    @classmethod
+    def instance(cls) -> "MemoryMonitor":
+        return cls()
 
+    def _init(self):
+        self._tracked: dict[str, "MemoryTracked"] = {}
+        self._tracelock = threading.Lock()
+        self._tracemalloc_started = False
+        self._last_snapshot: dict | None = None
+        self._last_snapshot_time = 0.0
+        self._snapshot_cache_sec = 2
 
-def register_model(name: str, model_or_path, description: str = "", category: str = "模型"):
-    """注册一个 PyTorch 模型，自动计算参数内存
+    # ---- tracemalloc ----
 
-    Args:
-        name: 显示名称，如 "VITS Paimon"
-        model_or_path: torch.nn.Module 或模型文件路径
-        description: 补充说明
-        category: 分组（模型/ONNX/其他）
-    """
-    size = _measure_model(model_or_path)
-    with _lock:
-        _models[name] = {
-            "description": description,
-            "size_bytes": size,
-            "category": category,
+    def _ensure_tracemalloc(self):
+        if self._tracemalloc_started:
+            return
+        try:
+            import tracemalloc
+            tracemalloc.start(25)
+            self._tracemalloc_started = True
+            _log.info("tracemalloc started")
+        except Exception:
+            pass
+
+    # ---- 注册 ----
+
+    def register(self, obj: "MemoryTracked"):
+        """注册一个 MemoryTracked 实例"""
+        with self._tracelock:
+            name = obj._mem_name or obj.__class__.__name__
+            # 同名覆盖（如模型 reload）
+            self._tracked[name] = obj
+
+    def unregister(self, name: str):
+        with self._tracelock:
+            self._tracked.pop(name, None)
+
+    # ---- 报告 ----
+
+    def get_report(self) -> dict:
+        """生成完整内存报告"""
+        now = time.time()
+        if self._last_snapshot and (now - self._last_snapshot_time) < self._snapshot_cache_sec:
+            return self._last_snapshot
+
+        self._ensure_tracemalloc()
+
+        # 进程 RSS
+        total_rss = 0
+        try:
+            import psutil
+            total_rss = psutil.Process(os.getpid()).memory_info().rss
+        except ImportError:
+            pass
+
+        # 已注册的 MemoryTracked 实例
+        tracked = []
+        with self._tracelock:
+            for name, obj in self._tracked.items():
+                size = obj._mem_size()
+                tracked.append({
+                    "name": name,
+                    "size_bytes": size,
+                    "size_mb": round(size / (1024 * 1024), 1),
+                    "category": obj._mem_category,
+                    "description": obj._mem_description,
+                })
+
+        # tracemalloc 快照
+        tm_items = self._tracemalloc_stats()
+
+        # 汇总饼图（TOP 15）
+        all_items = []
+        for t in tracked:
+            all_items.append({"name": t["name"], "size_mb": t["size_mb"], "category": t["category"]})
+        for t in tm_items:
+            all_items.append({"name": t["name"], "size_mb": t["size_mb"], "category": t["category"]})
+        all_items.sort(key=lambda x: -x["size_mb"])
+        accounted_mb = sum(i["size_mb"] for i in all_items)
+        other_mb = max(0, round(total_rss / (1024 * 1024), 1) - accounted_mb)
+        if other_mb > 0.5:
+            all_items.append({"name": "未分类（系统开销+碎片）", "size_mb": round(other_mb, 1), "category": "系统"})
+
+        # GC 统计
+        gc_stats = {"counts": gc.get_count(), "threshold": gc.get_threshold(), "details": []}
+        try:
+            for i, s in enumerate(gc.get_stats()):
+                gc_stats["details"].append({"gen": i, **s})
+        except Exception:
+            pass
+
+        report = {
+            "total_rss": total_rss,
+            "total_rss_mb": round(total_rss / (1024 * 1024), 1),
+            "tracked": tracked,
+            "tracemalloc": tm_items,
+            "summary": all_items[:15],
+            "gc_stats": gc_stats,
+            "timestamp": now,
         }
-    _log.info("Memory monitor: %s = %.1f MB", name, size / (1024 * 1024))
+        self._last_snapshot = report
+        self._last_snapshot_time = now
+        return report
 
+    def gc_now(self) -> dict:
+        """手动触发 GC，返回回收统计"""
+        before = 0
+        try:
+            import psutil
+            before = psutil.Process(os.getpid()).memory_info().rss
+        except ImportError:
+            pass
 
-def register_component(name: str, description: str = "", size_bytes: int = 0, category: str = "组件"):
-    """注册非模型组件，如缓存、日志缓冲等"""
-    with _lock:
-        _components[name] = {
-            "description": description,
-            "size_bytes": size_bytes,
-            "category": category,
+        collected = gc.collect()
+
+        after = 0
+        try:
+            import psutil
+            after = psutil.Process(os.getpid()).memory_info().rss
+        except ImportError:
+            pass
+
+        return {
+            "collected": collected,
+            "before_mb": round(before / (1024 * 1024), 1),
+            "after_mb": round(after / (1024 * 1024), 1),
+            "freed_mb": round((before - after) / (1024 * 1024), 1),
         }
 
+    # ---- tracemalloc 内部分析 ----
 
-def update_component(name: str, size_bytes: int):
-    """更新组件大小（如 TTS 缓存在变化）"""
-    with _lock:
-        if name in _components:
-            _components[name]["size_bytes"] = size_bytes
-
-
-def _measure_model(model_or_path) -> int:
-    """测量 PyTorch 模型或 ONNX 会话的内存占用"""
-    try:
-        import torch
-        if isinstance(model_or_path, torch.nn.Module):
-            total = 0
-            for p in model_or_path.parameters():
-                total += p.numel() * p.element_size()
-            return total
-    except ImportError:
-        pass
-
-    # ONNX 会话：无法直接测量，估算
-    if hasattr(model_or_path, "_model_path"):
-        path = model_or_path._model_path
-        if os.path.isfile(path):
-            return os.path.getsize(path)
-    if isinstance(model_or_path, str) and os.path.isfile(model_or_path):
-        return os.path.getsize(model_or_path)
-
-    return 0
-
-
-def _get_tracemalloc_stats() -> list[dict]:
-    """获取 tracemalloc 按模块分组的统计"""
-    if not _started:
-        return []
-    try:
-        import tracemalloc
-    except ImportError:
-        return []
-
-    snap = tracemalloc.take_snapshot()
-    stats = snap.statistics("traceback")
-    # 聚合到模块名
-    module_sizes: dict[str, int] = {}
-    for s in stats:
-        mod = _classify_traceback(s.traceback)
-        module_sizes[mod] = module_sizes.get(mod, 0) + s.size
-
-    result = []
-    for mod, size in sorted(module_sizes.items(), key=lambda x: -x[1]):
-        result.append({"name": mod, "size_bytes": size, "category": "Python 分配"})
-    return result
-
-
-def _classify_traceback(tb) -> str:
-    """将 tracemalloc traceback 分类到模块名"""
-    # 已知模式
-    patterns = [
+    _TRACEMALLOC_PATTERNS = [
         ("vits", "VITS 推理"),
         ("funasr", "FunASR STT"),
         ("modelscope", "ModelScope 声纹"),
@@ -166,140 +206,128 @@ def _classify_traceback(tb) -> str:
         ("pyaudio", "PyAudio"),
         ("<unknown>", "未知/其他"),
     ]
-    for frame in tb:
-        fname = frame.filename
-        for pattern, label in patterns:
-            if pattern in fname.lower():
-                return label
-    return "其他 Python"
+
+    def _tracemalloc_stats(self) -> list[dict]:
+        if not self._tracemalloc_started:
+            return []
+        try:
+            import tracemalloc
+        except ImportError:
+            return []
+
+        snap = tracemalloc.take_snapshot()
+        stats = snap.statistics("traceback")
+        module_sizes: dict[str, int] = {}
+        for s in stats:
+            mod = self._classify_traceback(s.traceback)
+            module_sizes[mod] = module_sizes.get(mod, 0) + s.size
+
+        return [
+            {"name": mod, "size_bytes": size, "size_mb": round(size / (1024 * 1024), 1), "category": "Python 分配"}
+            for mod, size in sorted(module_sizes.items(), key=lambda x: -x[1])
+        ]
+
+    def _classify_traceback(self, tb) -> str:
+        for frame in tb:
+            fname = frame.filename
+            for pattern, label in self._TRACEMALLOC_PATTERNS:
+                if pattern in fname.lower():
+                    return label
+        return "其他 Python"
+
+
+# ============================================================
+# MemoryTracked — 基类
+# ============================================================
+
+class MemoryTracked:
+    """继承此基类自动注册到 MemoryMonitor，获得内存追踪能力。
+
+    子类在 __init__ 中调用 super().__init__(name=..., category=...)。
+    可重写 _mem_size() 返回自身内存字节数。
+    """
+
+    def __init__(self, name: str = "", description: str = "", category: str = "组件"):
+        self._mem_name = name or self.__class__.__name__
+        self._mem_description = description
+        self._mem_category = category
+        MemoryMonitor.instance().register(self)
+
+    def _mem_size(self) -> int:
+        """子类重写以返回自身内存占用。默认用 sys.getsizeof"""
+        try:
+            return sys.getsizeof(self)
+        except Exception:
+            return 0
+
+    @staticmethod
+    def _model_size(model) -> int:
+        """测量 PyTorch 模型参数内存"""
+        try:
+            import torch
+            if isinstance(model, torch.nn.Module):
+                return sum(p.numel() * p.element_size() for p in model.parameters())
+        except ImportError:
+            pass
+        return 0
+
+    @staticmethod
+    def _file_size(path: str) -> int:
+        """文件大小"""
+        try:
+            return os.path.getsize(path) if os.path.isfile(path) else 0
+        except Exception:
+            return 0
+
+
+# ============================================================
+# 向后兼容 — 模块级函数别名
+# ============================================================
+
+def start():
+    MemoryMonitor.instance()._ensure_tracemalloc()
+
+
+def register_model(name: str, model_or_path, description: str = "", category: str = "模型"):
+    """向后兼容：手动注册模型（非 MemoryTracked 子类用）"""
+    class _ModelRef(MemoryTracked):
+        def __init__(self):
+            super().__init__(name=name, description=description, category=category)
+            self._ref = model_or_path
+
+        def _mem_size(self):
+            if hasattr(self._ref, "parameters"):
+                return MemoryTracked._model_size(self._ref)
+            if isinstance(self._ref, str) and os.path.isfile(self._ref):
+                return MemoryTracked._file_size(self._ref)
+            return 0
+
+    _ModelRef()
+
+
+def register_component(name: str, description: str = "", size_bytes: int = 0, category: str = "组件"):
+    """向后兼容：手动注册组件（非 MemoryTracked 子类用）"""
+    class _Comp(MemoryTracked):
+        def __init__(self):
+            super().__init__(name=name, description=description, category=category)
+            self._size = size_bytes
+
+        def _mem_size(self):
+            return self._size
+
+    _Comp()
+
+
+def update_component(name: str, size_bytes: int):
+    """向后兼容：更新组件大小"""
+    tracked = MemoryMonitor.instance()._tracked.get(name)
+    if tracked and hasattr(tracked, "_size"):
+        tracked._size = size_bytes
 
 
 def get_report() -> dict:
-    """生成完整内存报告
-
-    Returns:
-        {
-            "total_rss": int,          # 进程总 RSS（字节）
-            "total_rss_mb": float,
-            "models": [{name, size_bytes, size_mb, category, description}],
-            "components": [{...}],
-            "tracemalloc": [{name, size_bytes, size_mb, category}],
-            "summary": [{name, size_mb, percent}],  # 汇总饼图数据
-            "gc_stats": {...},
-            "timestamp": float,
-        }
-    """
-    global _last_snapshot, _last_snapshot_time
-    now = time.time()
-    if _last_snapshot and (now - _last_snapshot_time) < SNAPSHOT_CACHE_SEC:
-        return _last_snapshot
-
-    # 进程 RSS
-    total_rss = 0
-    try:
-        import psutil
-        total_rss = psutil.Process(os.getpid()).memory_info().rss
-    except ImportError:
-        pass
-
-    # 模型
-    models = []
-    with _lock:
-        for name, info in _models.items():
-            models.append({
-                "name": name,
-                "size_bytes": info["size_bytes"],
-                "size_mb": round(info["size_bytes"] / (1024 * 1024), 1),
-                "category": info["category"],
-                "description": info.get("description", ""),
-            })
-
-        # 组件
-        components = []
-        for name, info in _components.items():
-            components.append({
-                "name": name,
-                "size_bytes": info["size_bytes"],
-                "size_mb": round(info["size_bytes"] / (1024 * 1024), 1),
-                "category": info["category"],
-                "description": info.get("description", ""),
-            })
-
-    # tracemalloc
-    tm_stats = _get_tracemalloc_stats()
-    tm_items = []
-    for s in tm_stats:
-        tm_items.append({
-            "name": s["name"],
-            "size_bytes": s["size_bytes"],
-            "size_mb": round(s["size_bytes"] / (1024 * 1024), 1),
-            "category": s["category"],
-        })
-
-    # 汇总饼图数据（取 TOP 15）
-    all_items = []
-    for m in models:
-        all_items.append({"name": m["name"], "size_mb": m["size_mb"], "category": m["category"]})
-    for c in components:
-        all_items.append({"name": c["name"], "size_mb": c["size_mb"], "category": c["category"]})
-    for t in tm_items:
-        all_items.append({"name": t["name"], "size_mb": t["size_mb"], "category": t["category"]})
-
-    all_items.sort(key=lambda x: -x["size_mb"])
-    accounted_mb = sum(i["size_mb"] for i in all_items)
-    other_mb = max(0, round(total_rss / (1024 * 1024), 1) - accounted_mb)
-    if other_mb > 0.5:
-        all_items.append({"name": "未分类（系统开销+碎片）", "size_mb": round(other_mb, 1), "category": "系统"})
-
-    summary = all_items[:15]
-
-    # GC 统计
-    gc_stats = {
-        "counts": gc.get_count(),
-        "threshold": gc.get_threshold(),
-    }
-    try:
-        raw_stats = gc.get_stats()
-        gc_stats["details"] = [{"gen": i, **s} for i, s in enumerate(raw_stats)]
-    except Exception:
-        gc_stats["details"] = []
-
-    report = {
-        "total_rss": total_rss,
-        "total_rss_mb": round(total_rss / (1024 * 1024), 1),
-        "models": models,
-        "components": components,
-        "tracemalloc": tm_items,
-        "summary": summary,
-        "gc_stats": gc_stats,
-        "timestamp": now,
-    }
-    _last_snapshot = report
-    _last_snapshot_time = now
-    return report
+    return MemoryMonitor.instance().get_report()
 
 
 def gc_now() -> dict:
-    """手动触发 GC，返回回收统计"""
-    before = 0
-    try:
-        import psutil
-        before = psutil.Process(os.getpid()).memory_info().rss
-    except ImportError:
-        pass
-
-    collected = gc.collect()
-
-    after = 0
-    try:
-        import psutil
-        after = psutil.Process(os.getpid()).memory_info().rss
-    except ImportError:
-        pass
-
-    return {
-        "collected": collected,
-        "before_mb": round(before / (1024 * 1024), 1),
-        "after_mb": round(after / (1024 * 1024), 1),
-        "freed_mb": round((before - after) / (1024 * 1024), 1),
-    }
+    return MemoryMonitor.instance().gc_now()

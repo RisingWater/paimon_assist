@@ -1,4 +1,4 @@
-"""LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，持久化到 SQLite，支持 Tool Calling"""
+"""LLM 对话 — DeepSeek API，按 user_id 管理独立对话历史，支持 Tool Calling"""
 import gc
 import json
 import logging
@@ -13,12 +13,9 @@ import llm_tools.memory as _mem_mod
 from llm_tools import get_memory_value
 import tts as _tts_mod
 import settings
+from memory_monitor import MemoryTracked
 
 _log = logging.getLogger(__name__)
-
-def _load_silent_tools() -> set[str]:
-    """静默工具 = 工具自身声明 + 用户 settings 额外配置"""
-    return llm_tools.get_default_silent_tools() | settings.get_silent_tools()
 
 _DEFAULT_RULES_PREFIX = (
     "你是派萌，一个可爱的AI助手。你的回答会通过语音播放给用户听。"
@@ -58,196 +55,203 @@ _DEFAULT_RULES_PREFIX = (
     "每次对话最多用一次，能自行推断就不要问。"
 )
 
-def _build_system() -> dict:
-    """构建带当前时间和记忆摘要的 system prompt"""
-    now = datetime.now().strftime("现在是%Y年%m月%d日 %A %H:%M。")
-    content = now + _DEFAULT_RULES_PREFIX
-    # 附加长期记忆摘要（动态读取，避免 import 缓存旧值）
-    if _mem_mod.memory_summary:
-        content += f"\n[长期记忆] {_mem_mod.memory_summary}"
-    return {"role": "system", "content": content}
 
+class LLM(MemoryTracked):
+    """DeepSeek LLM 对话引擎（单例）"""
 
-def _get_history(user_id: int) -> list[dict]:
-    """从 DB 加载 5 分钟内的对话历史，超出部分交给中期记忆"""
-    system = _build_system()
-    rows = db.load_history(user_id)
-    if not rows:
-        db.append_message(user_id, "system", system["content"])
-        return [system]
+    _instance = None
 
-    # 只取最近 5 分钟的消息
-    cutoff = (datetime.now() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
-    rows = [r for r in rows if r.get("created_at", "") >= cutoff]
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._init()
+        return cls._instance
 
-    messages = [system]
+    @classmethod
+    def instance(cls):
+        return cls()
 
-    # 附加中期记忆摘要（动态读取，避免 import 缓存旧值）
-    mid = _mem_mod.get_midterm_summary(user_id)
-    if mid:
-        messages.append({"role": "system", "content": f"[近期回顾] {mid}"})
+    def _init(self):
+        super().__init__("LLM 对话引擎", "DeepSeek API + Tool Calling，按 user_id 隔离历史", category="LLM")
 
-    for r in rows:
-        if r["role"] == "system":
-            continue
-        content = r["content"]
-        if content.startswith("{") and content.endswith("}"):
-            try:
-                parsed = json.loads(content)
-                if isinstance(parsed, dict) and "role" in parsed:
-                    messages.append(parsed)
-                    continue
-            except (json.JSONDecodeError, TypeError):
-                pass
-        messages.append({"role": r["role"], "content": content})
-    return messages
+    # ---- 公开接口 ----
 
+    def chat(self, user_text: str, user_id: int = 0, speaker: str = "") -> str:
+        """发送消息到 DeepSeek，返回回复文本。支持自动 tool calling。"""
+        history = self._get_history(user_id)
 
-def _log_to_midterm(user_id: int, tool_calls_during_chat: list[str], user_text: str, reply: str):
-    """规则：如果本轮对话沾了 memory_value=0 的 tool，整轮不进中期记忆"""
-    if user_id <= 0:
-        return
-    for name in tool_calls_during_chat:
-        if get_memory_value(name) == 0:
-            return  # 有低价值 tool → 整轮丢弃
-
-    # 纯聊天或高价值 tool → 记入中期记忆
-    ts = datetime.now().strftime("%m-%d %H:%M")
-    _mem_mod.append_to_midterm(user_id, f"[{ts}] 问：{user_text} | 答：{reply[:200]}")
-
-
-def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
-    """调用 DeepSeek API，返回完整响应 JSON"""
-    body = {
-        "model": DEEPSEEK_MODEL,
-        "messages": messages,
-        "max_tokens": 200,
-        "temperature": 0.7,
-    }
-    if tools:
-        body["tools"] = tools
-
-    resp = requests.post(
-        DEEPSEEK_URL,
-        headers={
-            "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-            "Content-Type": "application/json",
-        },
-        json=body,
-        timeout=15,
-    )
-    if resp.status_code != 200:
-        _log.error("DeepSeek API %d: %s", resp.status_code, resp.text[:500])
-        raise RuntimeError(f"API error: {resp.status_code}")
-    return resp.json()
-
-
-def chat(user_text: str, user_id: int = 0, speaker: str = "") -> str:
-    """发送消息到 DeepSeek，返回回复文本。支持自动 tool calling。
-
-    Args:
-        user_text: 用户说的话
-        user_id: 声纹匹配到的用户 ID（0 = 陌生人/未识别）
-        speaker: 用户的名字
-    """
-    history = _get_history(user_id)
-
-    content = f"[说话人: {speaker}] {user_text}" if speaker else user_text
-    history.append({"role": "user", "content": content})
-    if user_id:
-        db.append_message(user_id, "user", content)
-
-    try:
-        tools = llm_tools.get_schemas()
-        tool_prefix = ""
-
-        # 记录本轮涉及的所有 tool 名称（用于判断记忆价值）
-        all_tool_names: list[str] = []
-
-        # 多轮 tool call 循环：列表→控制这样的连续调用
-        for _round in range(5):  # 最多 5 轮，防止死循环
-            data = _call_api(history, tools)
-            choice = data["choices"][0]
-            msg = choice["message"]
-            _log.info("LLM finish_reason=%s content=%s tool_calls=%s",
-                choice.get("finish_reason", "?"),
-                (msg.get("content") or "")[:50],
-                [tc["function"]["name"] for tc in (msg.get("tool_calls") or [])],
-            )
-
-            tool_calls = msg.get("tool_calls") or []
-            if not tool_calls:
-                # 没有 tool call，回复就是最终内容
-                break
-
-            # 保存友好提示语（第一轮的 content）
-            content = (msg.get("content") or "").strip()
-            if content and not tool_prefix:
-                tool_prefix = content
-
-            if user_id:
-                db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
-            if tool_prefix:
-                # 从配置文件加载静默工具列表
-                silent_tools = _load_silent_tools()
-                should_play = all(
-                    tc["function"]["name"] not in silent_tools
-                    for tc in tool_calls
-                )
-                if should_play:
-                    try:
-                        _tts_mod.speak(tool_prefix)
-                    except Exception:
-                        pass
-                tool_prefix = ""  # 只处理一次
-            history.append(msg)
-
-            for tc in tool_calls:
-                fn_name = tc["function"]["name"]
-                all_tool_names.append(fn_name)
-                fn_args = json.loads(tc["function"]["arguments"])
-                _log.info("Tool call: %s(%s)", fn_name, fn_args)
-                result = llm_tools.execute(fn_name, fn_args)
-                _log.info("Tool result: %s", result[:200] if result else "(empty)")
-
-                # final 工具：成功则直接返回，失败才交给 LLM
-                if llm_tools.is_final(fn_name):
-                    is_error = "失败" in result or "错误" in result
-                    if not is_error:
-                        if user_id:
-                            db.append_message(user_id, "assistant", result)
-                        history.append({"role": "assistant", "content": result})
-                        return result
-
-                tool_msg = {
-                    "role": "tool",
-                    "tool_call_id": tc["id"],
-                    "content": result,
-                }
-                history.append(tool_msg)
-                if user_id:
-                    db.append_message(user_id, "tool", json.dumps(tool_msg, ensure_ascii=False))
-
-        reply = msg.get("content", "")
-        if reply == "__SKIP__":
-            # 无效对话，删除用户消息不存历史
-            if user_id:
-                rows = db.load_history(user_id)
-                if rows:
-                    db.delete_message(rows[-1]["id"])
-            return "__SKIP__"
-        if reply:
-            history.append({"role": "assistant", "content": reply})
-            if user_id:
-                db.append_message(user_id, "assistant", reply)
-
-        # 简单规则记入中期记忆
+        content = f"[说话人: {speaker}] {user_text}" if speaker else user_text
+        history.append({"role": "user", "content": content})
         if user_id:
-            _log_to_midterm(user_id, all_tool_names, user_text, reply or "")
+            db.append_message(user_id, "user", content)
 
-        # 强制 GC 回收本轮对话的 history list 和 tool call 中间数据
-        gc.collect()
-        return reply or "（无回复）"
-    except Exception as e:
-        _log.error("LLM chat error: %s", e)
-        return ""
+        try:
+            tools = llm_tools.get_schemas()
+            tool_prefix = ""
+            all_tool_names: list[str] = []
+
+            for _round in range(5):
+                data = self._call_api(history, tools)
+                choice = data["choices"][0]
+                msg = choice["message"]
+                _log.info("LLM finish_reason=%s content=%s tool_calls=%s",
+                    choice.get("finish_reason", "?"),
+                    (msg.get("content") or "")[:50],
+                    [tc["function"]["name"] for tc in (msg.get("tool_calls") or [])],
+                )
+
+                tool_calls = msg.get("tool_calls") or []
+                if not tool_calls:
+                    break
+
+                content = (msg.get("content") or "").strip()
+                if content and not tool_prefix:
+                    tool_prefix = content
+
+                if user_id:
+                    db.append_message(user_id, "assistant", json.dumps(msg, ensure_ascii=False))
+                if tool_prefix:
+                    silent_tools = self._load_silent_tools()
+                    should_play = all(
+                        tc["function"]["name"] not in silent_tools for tc in tool_calls
+                    )
+                    if should_play:
+                        try:
+                            _tts_mod.speak(tool_prefix)
+                        except Exception:
+                            pass
+                    tool_prefix = ""
+                history.append(msg)
+
+                for tc in tool_calls:
+                    fn_name = tc["function"]["name"]
+                    all_tool_names.append(fn_name)
+                    fn_args = json.loads(tc["function"]["arguments"])
+                    _log.info("Tool call: %s(%s)", fn_name, fn_args)
+                    result = llm_tools.execute(fn_name, fn_args)
+                    _log.info("Tool result: %s", result[:200] if result else "(empty)")
+
+                    if llm_tools.is_final(fn_name):
+                        is_error = "失败" in result or "错误" in result
+                        if not is_error:
+                            if user_id:
+                                db.append_message(user_id, "assistant", result)
+                            history.append({"role": "assistant", "content": result})
+                            return result
+
+                    tool_msg = {
+                        "role": "tool",
+                        "tool_call_id": tc["id"],
+                        "content": result,
+                    }
+                    history.append(tool_msg)
+                    if user_id:
+                        db.append_message(user_id, "tool", json.dumps(tool_msg, ensure_ascii=False))
+
+            reply = msg.get("content", "")
+            if reply == "__SKIP__":
+                if user_id:
+                    rows = db.load_history(user_id)
+                    if rows:
+                        db.delete_message(rows[-1]["id"])
+                return "__SKIP__"
+            if reply:
+                history.append({"role": "assistant", "content": reply})
+                if user_id:
+                    db.append_message(user_id, "assistant", reply)
+
+            if user_id:
+                self._log_to_midterm(user_id, all_tool_names, user_text, reply or "")
+
+            gc.collect()
+            return reply or "（无回复）"
+        except Exception as e:
+            _log.error("LLM chat error: %s", e)
+            return ""
+
+    # ---- 内部 ----
+
+    @staticmethod
+    def _load_silent_tools() -> set[str]:
+        return llm_tools.get_default_silent_tools() | settings.get_silent_tools()
+
+    @staticmethod
+    def _build_system() -> dict:
+        now = datetime.now().strftime("现在是%Y年%m月%d日 %A %H:%M。")
+        content = now + _DEFAULT_RULES_PREFIX
+        if _mem_mod._mgr.memory_summary:
+            content += f"\n[长期记忆] {_mem_mod._mgr.memory_summary}"
+        return {"role": "system", "content": content}
+
+    @staticmethod
+    def _get_history(user_id: int) -> list[dict]:
+        system = LLM._build_system()
+        rows = db.load_history(user_id)
+        if not rows:
+            db.append_message(user_id, "system", system["content"])
+            return [system]
+
+        cutoff = (datetime.now() - timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M:%S")
+        rows = [r for r in rows if r.get("created_at", "") >= cutoff]
+
+        messages = [system]
+        mid = _mem_mod.get_midterm_summary(user_id)
+        if mid:
+            messages.append({"role": "system", "content": f"[近期回顾] {mid}"})
+
+        for r in rows:
+            if r["role"] == "system":
+                continue
+            content = r["content"]
+            if content.startswith("{") and content.endswith("}"):
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, dict) and "role" in parsed:
+                        messages.append(parsed)
+                        continue
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            messages.append({"role": r["role"], "content": content})
+        return messages
+
+    @staticmethod
+    def _log_to_midterm(user_id: int, tool_calls_during_chat: list[str], user_text: str, reply: str):
+        if user_id <= 0:
+            return
+        for name in tool_calls_during_chat:
+            if get_memory_value(name) == 0:
+                return
+        ts = datetime.now().strftime("%m-%d %H:%M")
+        _mem_mod.append_to_midterm(user_id, f"[{ts}] 问：{user_text} | 答：{reply[:200]}")
+
+    @staticmethod
+    def _call_api(messages: list[dict], tools: list[dict] | None = None) -> dict:
+        body = {
+            "model": DEEPSEEK_MODEL,
+            "messages": messages,
+            "max_tokens": 200,
+            "temperature": 0.7,
+        }
+        if tools:
+            body["tools"] = tools
+
+        resp = requests.post(
+            DEEPSEEK_URL,
+            headers={
+                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+            timeout=15,
+        )
+        if resp.status_code != 200:
+            _log.error("DeepSeek API %d: %s", resp.status_code, resp.text[:500])
+            raise RuntimeError(f"API error: {resp.status_code}")
+        return resp.json()
+
+
+# 全局单例
+llm = LLM()
+
+# 向后兼容
+chat = llm.chat

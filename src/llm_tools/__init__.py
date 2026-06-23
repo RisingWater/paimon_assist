@@ -1,102 +1,134 @@
-"""LLM Tool 注册中心 — 按需加载工具模块，提供 OpenAI 兼容的 function schema"""
+"""LLM Tool Calling — BaseTool(MemoryTracked) 基类 + ToolRegistry 单例
 
-from typing import Any, Callable
+每个工具继承 BaseTool，定义 schema + execute(args) → str。
+模块加载时自动实例化并注册到 ToolRegistry。
+"""
+import logging
+from memory_monitor import MemoryTracked
 
-# tool_name → {schema, handler, memory_value, silent}
-_registry: dict[str, dict] = {}
+_log = logging.getLogger(__name__)
 
 
-def register(
-    name: str,
-    description: str,
-    parameters: dict,
-    memory_value: int = 0,
-    silent: bool = False,
-    final: bool = False,
-):
-    """装饰器：注册一个 tool。
+# ============================================================
+# BaseTool — 工具基类，继承 MemoryTracked 自动获得内存追踪
+# ============================================================
 
-    Args:
-        memory_value: 0=无记忆价值(开关/查询), 1-3=低(提醒CRUD),
-                      4-6=中(天气/定位), 7-10=高(搜索/记忆)
-        silent: True=调用时不播 TTS 提示语（开关/查询类工具）
-        final: True=工具返回值直接作为最终回复播出，不再让 LLM 二次加工。
-               失败（含"失败"/"错误"字样）时仍会交给 LLM 友好解释。
-    """
+class BaseTool(MemoryTracked):
+    """LLM 工具基类。子类需实现 execute(args) → str。"""
 
-    def decorator(fn: Callable[[dict], str]):
-        _registry[name] = {
-            "schema": {
-                "type": "function",
-                "function": {
-                    "name": name,
-                    "description": description,
-                    "parameters": parameters,
-                },
+    def __init__(
+        self,
+        name: str,
+        description: str,
+        parameters: dict,
+        memory_value: int = 0,
+        silent: bool = False,
+        final: bool = False,
+    ):
+        super().__init__(name=name, description=description, category="Tool")
+        self.memory_value = memory_value
+        self.silent = silent
+        self.final = final
+        self._schema = {
+            "type": "function",
+            "function": {
+                "name": name,
+                "description": description,
+                "parameters": parameters,
             },
-            "handler": fn,
-            "memory_value": memory_value,
-            "silent": silent,
-            "final": final,
         }
-        return fn
 
-    return decorator
+    @property
+    def schema(self) -> dict:
+        return self._schema
 
-
-def get_memory_value(name: str) -> int:
-    """返回工具的长期记忆价值（0-10）"""
-    t = _registry.get(name)
-    return t["memory_value"] if t else 0
+    def execute(self, args: dict) -> str:
+        raise NotImplementedError(f"{self._mem_name}.execute() not implemented")
 
 
-def get_default_silent_tools() -> set[str]:
-    """返回所有 silent=True 的工具名（工具自身声明）"""
-    return {name for name, t in _registry.items() if t.get("silent")}
+# ============================================================
+# ToolRegistry — 工具注册中心单例
+# ============================================================
+
+class ToolRegistry(MemoryTracked):
+    """工具注册中心单例，管理所有 BaseTool 的注册/查找/执行"""
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._init()
+        return cls._instance
+
+    @classmethod
+    def instance(cls):
+        return cls()
+
+    def _init(self):
+        super().__init__("Tool 注册表", "所有 LLM 工具的注册中心", category="Tool")
+        self._tools: dict[str, BaseTool] = {}
+
+    # ---- 注册 ----
+
+    def register(self, tool: BaseTool):
+        self._tools[tool.schema["function"]["name"]] = tool
+
+    # ---- 查询 ----
+
+    def get_schemas(self) -> list[dict]:
+        return [t.schema for t in self._tools.values()]
+
+    def execute(self, name: str, arguments: dict) -> str:
+        tool = self._tools.get(name)
+        if not tool:
+            return f"未知工具: {name}"
+        try:
+            return tool.execute(arguments)
+        except Exception as e:
+            return f"工具调用失败: {e}"
+
+    def get_memory_value(self, name: str) -> int:
+        tool = self._tools.get(name)
+        return tool.memory_value if tool else 0
+
+    def get_default_silent_tools(self) -> set[str]:
+        return {name for name, t in self._tools.items() if t.silent}
+
+    def is_final(self, name: str) -> bool:
+        tool = self._tools.get(name)
+        return tool.final if tool else False
+
+    def __len__(self):
+        return len(self._tools)
 
 
-def is_final(name: str) -> bool:
-    """工具是否标记为 final（返回值直接作为最终回复）"""
-    t = _registry.get(name)
-    return t.get("final", False) if t else False
+# ============================================================
+# 全局单例
+# ============================================================
+
+tools = ToolRegistry()
+
+# 向后兼容别名（旧代码 from llm_tools import register / get_schemas / execute ...）
+register = tools.register
+get_schemas = tools.get_schemas
+execute = tools.execute
+get_memory_value = tools.get_memory_value
+get_default_silent_tools = tools.get_default_silent_tools
+is_final = tools.is_final
 
 
-def get_schemas() -> list[dict]:
-    """返回 OpenAI 兼容的 tools 列表，可直接传入 API 请求"""
-    return [t["schema"] for t in _registry.values()]
-
-
-def execute(name: str, arguments: dict) -> str:
-    """执行指定 tool，返回结果字符串"""
-    tool = _registry.get(name)
-    if not tool:
-        return f"未知工具: {name}"
-    try:
-        return tool["handler"](arguments)
-    except Exception as e:
-        return f"工具调用失败: {e}"
-
-
+# ============================================================
 # 导入所有工具模块（触发注册）
-import llm_tools.weather        # noqa: E402,F401
-import llm_tools.location       # noqa: E402,F401
-import llm_tools.web_search     # noqa: E402,F401
-import llm_tools.home_assistant_ac # noqa: E402,F401
-import llm_tools.memory           # noqa: E402,F401
-import llm_tools.home_tv          # noqa: E402,F401
-import llm_tools.reminder         # noqa: E402,F401
-import llm_tools.volume           # noqa: E402,F401
-import llm_tools.ask_user         # noqa: E402,F401
-import llm_tools.door             # noqa: E402,F401
+# ============================================================
 
-# 注册工具注册表到内存监控
-import sys as _sys
-_reg_size = _sys.getsizeof(_registry)
-for k, v in _registry.items():
-    _reg_size += _sys.getsizeof(k) + _sys.getsizeof(str(v.get("schema", "")))
-try:
-    import memory_monitor
-    memory_monitor.register_component(f"Tool 注册表 ({len(_registry)}个)", "所有工具的 function schema",
-                                      size_bytes=_reg_size, category="Tool")
-except Exception:
-    pass
+import llm_tools.weather             # noqa: E402,F401
+import llm_tools.location            # noqa: E402,F401
+import llm_tools.web_search          # noqa: E402,F401
+import llm_tools.home_assistant_ac   # noqa: E402,F401
+import llm_tools.memory              # noqa: E402,F401
+import llm_tools.home_tv             # noqa: E402,F401
+import llm_tools.reminder            # noqa: E402,F401
+import llm_tools.volume              # noqa: E402,F401
+import llm_tools.ask_user            # noqa: E402,F401
+import llm_tools.door                # noqa: E402,F401
