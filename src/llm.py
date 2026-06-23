@@ -9,7 +9,7 @@ import threading
 from config import cfg
 import db
 from llm_tools import tools
-import tools.memory as _mem_mod
+import llm_tools.memory as _mem_mod
 import tts as _tts_mod
 from settings import settings
 from memory_monitor import MemoryTracked
