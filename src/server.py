@@ -526,9 +526,6 @@ from fastapi.responses import PlainTextResponse
 from log_manager import log_mgr
 from memory_monitor import MemoryMonitor
 
-# 启动内存监控
-MemoryMonitor.instance()._ensure_tracemalloc()
-
 
 @app.get("/api/logs")
 async def api_get_logs(
