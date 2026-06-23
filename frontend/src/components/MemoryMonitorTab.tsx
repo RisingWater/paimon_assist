@@ -103,12 +103,15 @@ export default function MemoryMonitorTab() {
   const [gcResult, setGcResult] = useState<GcResult | null>(null)
 
   const fetchReport = useCallback(async () => {
+    setLoading(true)
     try {
       const res = await fetch("/api/memory/report")
       const data = await res.json()
       setReport(data)
     } catch {
       message.error("获取内存报告失败")
+    } finally {
+      setLoading(false)
     }
   }, [])
 
