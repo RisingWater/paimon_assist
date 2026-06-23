@@ -631,6 +631,8 @@ async def api_memory_report():
     try:
         return MemoryMonitor.instance().get_report()
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return {
             "total_rss": 0,
             "total_rss_mb": 0,
