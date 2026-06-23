@@ -135,18 +135,21 @@ class ControlAcTool(BaseTool):
             if not entity_id:
                 return f"未找到名称包含'{name}'"
 
+            # 友好名称：末尾没有"空调"则补上
+            friendly_name = name if name.endswith("空调") else f"{name}空调"
+
             if action == "on":
                 _call_service("climate", "turn_on", entity_id)
-                return f"{name}已开启，当前{_get_ac_state(entity_id)}"
+                return f"{friendly_name}已开启，当前{_get_ac_state(entity_id)}"
             elif action == "off":
                 _call_service("climate", "turn_off", entity_id)
-                return f"{name}已关闭"
+                return f"{friendly_name}已关闭"
             elif action == "set_temp":
                 if not value: return "请指定温度，如 26"
                 temp = float(value)
                 _call_service("climate", "set_hvac_mode", entity_id, {"hvac_mode": "cool"})
                 _call_service("climate", "set_temperature", entity_id, {"temperature": temp})
-                return f"{name}温度已设置为{_cn(int(temp))}度"
+                return f"{friendly_name}温度已设置为{_cn(int(temp))}度"
             elif action == "set_mode":
                 if not value: return "请指定模式：cool(制冷)/heat(制热)/auto(自动)/dry(除湿)/fan_only(送风)"
                 valid = {"cool", "heat", "auto", "dry", "fan_only"}
@@ -155,7 +158,7 @@ class ControlAcTool(BaseTool):
                     return f"无效模式，可选：{', '.join(sorted(valid))}"
                 _call_service("climate", "set_hvac_mode", entity_id, {"hvac_mode": value})
                 mode_cn = {"cool": "制冷", "heat": "制热", "auto": "自动", "dry": "除湿", "fan_only": "送风"}
-                return f"{name}模式已切换为{mode_cn.get(value, value)}"
+                return f"{friendly_name}模式已切换为{mode_cn.get(value, value)}"
             return f"未知操作: {action}"
         except Exception as e:
             return f"空调控制失败：{e}"
