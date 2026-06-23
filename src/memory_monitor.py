@@ -108,12 +108,14 @@ class MemoryMonitor:
         # tracemalloc 快照
         tm_items = self._tracemalloc_stats()
 
-        # 汇总饼图（TOP 15）
+        # 汇总饼图（过滤 < 0.5MB 的噪音，取 TOP 15）
         all_items = []
         for t in tracked:
-            all_items.append({"name": t["name"], "size_mb": t["size_mb"], "category": t["category"]})
+            if t["size_mb"] > 0.5:
+                all_items.append({"name": t["name"], "size_mb": t["size_mb"], "category": t["category"]})
         for t in tm_items:
-            all_items.append({"name": t["name"], "size_mb": t["size_mb"], "category": t["category"]})
+            if t["size_mb"] > 0.5:
+                all_items.append({"name": t["name"], "size_mb": t["size_mb"], "category": t["category"]})
         all_items.sort(key=lambda x: -x["size_mb"])
         accounted_mb = sum(i["size_mb"] for i in all_items)
         other_mb = max(0, round(total_rss / (1024 * 1024), 1) - accounted_mb)

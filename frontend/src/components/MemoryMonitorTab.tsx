@@ -137,8 +137,8 @@ export default function MemoryMonitorTab() {
     return () => clearInterval(timer)
   }, [autoRefresh, fetchReport])
 
-  // 合并详细列表
-  const allItems: MemoryItem[] = report?.summary ?? []
+  // 详细列表（过滤掉 0MB 的噪音条目）
+  const allItems: MemoryItem[] = (report?.summary ?? []).filter(d => d.size_mb > 0.1)
 
   // 饼图数据（过滤掉碎片等占比过小的）
   const chartData = (report?.summary ?? []).filter(d => d.size_mb > 1)
