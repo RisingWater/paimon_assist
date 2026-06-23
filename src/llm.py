@@ -85,12 +85,12 @@ class LLM(MemoryTracked):
             db.append_message(user_id, "user", content)
 
         try:
-            tools = tools.get_schemas()
+            tool_schemas = tools.get_schemas()
             tool_prefix = ""
             all_tool_names: list[str] = []
 
             for _round in range(5):
-                data = self._call_api(history, tools)
+                data = self._call_api(history, tool_schemas)
                 choice = data["choices"][0]
                 msg = choice["message"]
                 _log.info("LLM finish_reason=%s content=%s tool_calls=%s",
