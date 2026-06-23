@@ -148,7 +148,7 @@ class MemoryMonitor:
         return report
 
     def gc_now(self) -> dict:
-        """手动触发 GC，返回回收统计"""
+        """手动触发 GC + malloc_trim，返回回收统计"""
         before = 0
         try:
             import psutil

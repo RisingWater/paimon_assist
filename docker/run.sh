@@ -106,6 +106,9 @@ if [ -f .claude/settings.json ]; then
     echo "Claude Code settings loaded"
 fi
 
+# 限制 glibc 内存池=N150 核数，避免 15 线程各占一个 arena 撑出 3GB
+export MALLOC_ARENA_MAX=4
+
 # ---- 启动应用 ----
 echo "Starting 派萌助手..."
 exec venv/bin/python3 src/main.py
