@@ -628,20 +628,21 @@ async def api_wakeword_delete(category: str, filename: str):
 @app.get("/api/memory/report")
 async def api_memory_report():
     """获取各模块内存占用报告"""
+    import traceback, sys
     try:
-        return MemoryMonitor.instance().get_report()
-    except Exception as e:
-        import traceback
+        report = MemoryMonitor.instance().get_report()
+        # 确保 summary 是 list
+        if not isinstance(report.get("summary"), list):
+            report["summary"] = []
+        return report
+    except Exception:
         traceback.print_exc()
         return {
-            "total_rss": 0,
-            "total_rss_mb": 0,
-            "tracked": [],
-            "tracemalloc": [],
-            "summary": [],
+            "total_rss": 0, "total_rss_mb": 0,
+            "tracked": [], "tracemalloc": [], "summary": [],
             "gc_stats": {"counts": [0, 0, 0], "threshold": [700, 10, 10], "details": []},
             "timestamp": 0,
-            "error": str(e),
+            "error": traceback.format_exc(),
         }
 
 

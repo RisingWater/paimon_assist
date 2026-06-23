@@ -6,6 +6,7 @@
   3. MemoryMonitor.instance().get_report() 获取完整报告
   4. MemoryMonitor.instance().gc_now() 手动触发 GC
 """
+from __future__ import annotations
 
 import gc
 import logging
