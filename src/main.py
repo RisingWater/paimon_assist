@@ -37,9 +37,8 @@ logging.basicConfig(
 from log_manager import log_mgr
 log_mgr.setup()
 
-# ---- 内存监控（5 帧 tracemalloc，开销可忽略） ----
+# ---- 内存监控（模型加载完后启动，避免追踪加载时的百万次分配） ----
 from memory_monitor import MemoryMonitor
-MemoryMonitor.instance()._ensure_tracemalloc()
 
 # ---- 标准库 & 业务模块 ----
 import asyncio
@@ -78,6 +77,9 @@ async def main():
     tts.load()
     audio_manager.init()
     reminder_thread.start()
+
+    # 模型全部加载完毕后再启动 tracemalloc，避免追踪加载时的海量分配
+    MemoryMonitor.instance()._ensure_tracemalloc()
 
     _log.info("Threshold=%.2f Voiceprint=%.2f", cfg.THRESHOLD, cfg.VOICEPRINT_THRESHOLD)
     _log.info("Listening... Ctrl+C to stop")
