@@ -205,11 +205,12 @@ class MemoryMonitor:
     def _classify_map(self, m: dict, result: dict):
         if not m:
             return
-        pss = m.get("Pss:", 0)
-        priv_dirty = m.get("Private_Dirty:", 0)
-        priv_clean = m.get("Private_Clean:", 0)
-        shared = m.get("Shared_Clean:", 0) + m.get("Shared_Dirty:", 0)
-        anon = m.get("Anonymous:", 0)
+        # smaps 的 key 是 split(":", 1)[0].strip()，不带冒号
+        pss = m.get("Pss", 0)
+        priv_dirty = m.get("Private_Dirty", 0)
+        priv_clean = m.get("Private_Clean", 0)
+        shared = m.get("Shared_Clean", 0) + m.get("Shared_Dirty", 0)
+        anon = m.get("Anonymous", 0)
         path = m.get("path", "")
 
         result["pss_mb"] += pss / 1024
