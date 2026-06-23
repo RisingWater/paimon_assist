@@ -314,6 +314,34 @@ async def api_delete_reminder(rid: int):
     return {"ok": True}
 
 
+# ---- 内存监控 API（必须在 /api/memory/{name} 之前，否则 "report" 被 {name} 吃掉） ----
+
+@app.get("/api/memory_track/report")
+async def api_memory_report():
+    """获取各模块内存占用报告"""
+    import traceback
+    try:
+        report = MemoryMonitor.instance().get_report()
+        if not isinstance(report.get("summary"), list):
+            report["summary"] = []
+        return report
+    except Exception:
+        traceback.print_exc()
+        return {
+            "total_rss": 0, "total_rss_mb": 0,
+            "tracked": [], "tracemalloc": [], "summary": [],
+            "gc_stats": {"counts": [0, 0, 0], "threshold": [700, 10, 10], "details": []},
+            "timestamp": 0,
+            "error": traceback.format_exc(),
+        }
+
+
+@app.post("/api/memory_track/gc")
+async def api_memory_gc():
+    """手动触发垃圾回收"""
+    return MemoryMonitor.instance().gc_now()
+
+
 # ---- 记忆编辑 ----
 
 @app.get("/api/memory/{name}")
@@ -620,36 +648,6 @@ async def api_wakeword_delete(category: str, filename: str):
         raise HTTPException(404, "文件不存在")
     os.remove(path)
     return {"ok": True}
-
-
-# ---- 内存监控 API ----
-
-
-@app.get("/api/memory/report")
-async def api_memory_report():
-    """获取各模块内存占用报告"""
-    import traceback, sys
-    try:
-        report = MemoryMonitor.instance().get_report()
-        # 确保 summary 是 list
-        if not isinstance(report.get("summary"), list):
-            report["summary"] = []
-        return report
-    except Exception:
-        traceback.print_exc()
-        return {
-            "total_rss": 0, "total_rss_mb": 0,
-            "tracked": [], "tracemalloc": [], "summary": [],
-            "gc_stats": {"counts": [0, 0, 0], "threshold": [700, 10, 10], "details": []},
-            "timestamp": 0,
-            "error": traceback.format_exc(),
-        }
-
-
-@app.post("/api/memory/gc")
-async def api_memory_gc():
-    """手动触发垃圾回收"""
-    return MemoryMonitor.instance().gc_now()
 
 
 @app.get("/{path:path}")

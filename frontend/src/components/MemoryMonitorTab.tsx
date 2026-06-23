@@ -105,7 +105,7 @@ export default function MemoryMonitorTab() {
   const fetchReport = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch("/api/memory/report")
+      const res = await fetch("/api/memory_track/report")
       const data = await res.json()
       setReport(data)
     } catch {
@@ -118,7 +118,7 @@ export default function MemoryMonitorTab() {
   const doGc = useCallback(async () => {
     try {
       setGcResult(null)
-      const res = await fetch("/api/memory/gc", { method: "POST" })
+      const res = await fetch("/api/memory_track/gc", { method: "POST" })
       const data = await res.json()
       setGcResult(data)
       message.success(`GC 回收了 ${data.collected} 个对象，释放 ${data.freed_mb} MB`)

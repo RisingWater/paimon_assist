@@ -158,10 +158,10 @@ export const api = {
 
   // Memory monitor
   getMemoryReport: (): Promise<any> =>
-    fetch(`${BASE}/memory/report`).then((r) => r.json()),
+    fetch(`${BASE}/memory_track/report`).then((r) => r.json()),
 
   triggerGc: (): Promise<any> =>
-    fetch(`${BASE}/memory/gc`, { method: "POST" }).then((r) => r.json()),
+    fetch(`${BASE}/memory_track/gc`, { method: "POST" }).then((r) => r.json()),
 }
 
 export interface Reminder {
