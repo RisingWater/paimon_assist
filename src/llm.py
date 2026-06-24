@@ -49,7 +49,9 @@ _DEFAULT_RULES_PREFIX = (
     "13. 用户要求定时提醒/定时任务时，用 add_reminder 添加。"
     "查看/删除提醒用 list_reminders/delete_reminder。"
     "14. 调节音量用 get_volume/set_volume，参数是百分比数字，最大可以到200%。"
-    "15. 当设备名或参数不明确、记忆也无法确定时，"
+    "15. 用户要打游戏、开PS5时，调 control_ps5 power=true。"
+    "不想玩了、关PS5时，调 control_ps5 power=false。"
+    "16. 当设备名或参数不明确、记忆也无法确定时，"
     "或者一定需要收集额外信息才能回答问题，用 ask_question_to_user 询问用户。"
     "每次对话最多用一次，能自行推断就不要问。"
 )

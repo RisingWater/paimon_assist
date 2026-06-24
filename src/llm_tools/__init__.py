@@ -124,3 +124,4 @@ import llm_tools.reminder            # noqa: E402,F401
 import llm_tools.volume              # noqa: E402,F401
 import llm_tools.ask_user            # noqa: E402,F401
 import llm_tools.door                # noqa: E402,F401
+import llm_tools.ps5_game            # noqa: E402,F401
