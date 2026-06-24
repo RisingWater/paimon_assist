@@ -42,6 +42,7 @@ TTS 播放期间暂停唤醒词检测，播完自动恢复。
 | `src/llm_tools/volume.py` | PulseAudio 音量控制 | `get_volume`, `set_volume` |
 | `src/llm_tools/ask_user.py` | 反问用户收集信息 | `ask_question_to_user` |
 | `src/llm_tools/door.py` | 楼下门禁开门 | `open_door` |
+| `src/llm_tools/ps5_game.py` | PS5 开关联动小米电视 | `control_ps5` |
 | `src/reminder_thread.py` | 定时提醒后台线程（每分钟检查） | `start()` |
 | `src/server.py` | FastAPI REST API + serve 前端 | REST API + SPA fallback |
 | `src/tts/api.py` | FastAPI TTS 路由（/api/tts/speak） | 内嵌 cache |
@@ -120,6 +121,7 @@ DeepSeek 支持自动调用工具，当前注册的工具：
 | `ask_question_to_user` | 信息不足时反问用户（TTS提问+录音+STT） |
 | `web_search` | 通过 Claude Code CLI 联网搜索最新信息 |
 | `open_door` | 打开楼下门禁 |
+| `control_ps5` | 一键开关 PS5 + 联动小米电视切 HDMI / 音响模式 |
 
 每个工具标注 `memory_value`（0-10）：0=无记忆价值（开关/查询），5-8=中高价值（定位/搜索），10=极高（save_memory）。
 每个工具通过 `@register(silent=True/False)` 声明是否播 TTS 提示语。Web 配置页可覆盖。
