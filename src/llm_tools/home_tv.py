@@ -9,7 +9,6 @@ _log = logging.getLogger(__name__)
 _HEADERS = {"Authorization": f"Bearer {cfg.HOME_ASSISTANT_TOKEN}", "Content-Type": "application/json"}
 _MITV_PREFIX = "xiaomi_cn_mitv"
 
-
 def _press_button(entity_id: str):
     url = f"{cfg.HOME_ASSISTANT_URL}/api/services/button/press"
     resp = requests.post(url, json={"entity_id": entity_id}, headers=_HEADERS, timeout=10)

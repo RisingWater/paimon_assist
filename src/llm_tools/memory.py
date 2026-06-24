@@ -92,14 +92,20 @@ class MemoryManager(MemoryTracked):
                 return
 
             from config import cfg
-            prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键关系：\n" + "\n".join(lines)
+            prompt = (
+                "以下是记忆库中的事实列表。请生成一段200字以内的**话题索引**，"
+                "只概括记忆中**包含哪些方面的话题**"
+                "（如'有家庭成员信息、有世界杯赛事记录、有空调使用偏好'），"
+                "**绝对不要**复述具体人名、数字、事件细节或对话内容。\n"
+                + "\n".join(lines)
+            )
             resp = requests.post(
                 cfg.DEEPSEEK_URL,
                 headers={"Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
                 json={
                     "model": cfg.DEEPSEEK_MODEL,
                     "messages": [
-                        {"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
+                        {"role": "system", "content": "你是记忆索引助手。只输出话题索引，不记录具体内容。输出200字以内的中文，只输出索引本身。"},
                         {"role": "user", "content": prompt},
                     ],
                     "max_tokens": 100, "temperature": 0.3,
@@ -208,13 +214,19 @@ class MemoryManager(MemoryTracked):
             return
         try:
             from config import cfg
-            prompt = "请将以下事实压缩为一段200字以内的摘要，保留所有人名、地名、关键信息：\n" + "\n".join(facts)
+            prompt = (
+                "以下是近期的对话记录。请生成一段200字以内的**话题索引**，"
+                "只概括这些记录**涉及哪些话题**"
+                "（如'讨论过足球比赛、查询过天气、设置过提醒'），"
+                "**绝对不要**复述具体对话内容、人名、数字或事件细节。\n"
+                + "\n".join(facts)
+            )
             resp = requests.post(
                 cfg.DEEPSEEK_URL,
                 headers={"Authorization": f"Bearer {cfg.DEEPSEEK_API_KEY}", "Content-Type": "application/json"},
                 json={
                     "model": cfg.DEEPSEEK_MODEL,
-                    "messages": [{"role": "system", "content": "你是摘要助手。输出200字以内的中文摘要，只输出摘要本身。"},
+                    "messages": [{"role": "system", "content": "你是记忆索引助手。只输出话题索引，不记录具体内容。输出200字以内的中文，只输出索引本身。"},
                                  {"role": "user", "content": prompt}],
                     "max_tokens": 100, "temperature": 0.3,
                 },
