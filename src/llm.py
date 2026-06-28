@@ -220,6 +220,27 @@ class LLM(MemoryTracked):
                 except (json.JSONDecodeError, TypeError):
                     pass
             messages.append({"role": r["role"], "content": content})
+
+        # 清理孤立的 tool_calls（没有对应 tool response 的），否则 DeepSeek 报 400
+        i = 0
+        while i < len(messages):
+            msg = messages[i]
+            if isinstance(msg, dict) and msg.get("tool_calls"):
+                tc_ids = {tc["id"] for tc in msg["tool_calls"]}
+                j = i + 1
+                while j < len(messages):
+                    nxt = messages[j]
+                    if isinstance(nxt, dict) and nxt.get("role") == "tool":
+                        tc_id = nxt.get("tool_call_id", "")
+                        tc_ids.discard(tc_id)
+                        j += 1
+                    else:
+                        break
+                if tc_ids:  # 有 tool_call 缺少对应的 tool response → 删除
+                    messages.pop(i)
+                    continue
+            i += 1
+
         return messages
 
     @staticmethod
