@@ -135,14 +135,11 @@ class LLM(MemoryTracked):
                     if tools.is_final(fn_name):
                         is_error = "失败" in result or "错误" in result
                         if not is_error:
-                            # 删除未完成的 tool_calls 消息，避免下次加载历史时 API 报 400
                             if user_id:
-                                rows = db.load_history(user_id)
-                                for r in reversed(rows):
-                                    if '"tool_calls"' in r["content"]:
-                                        db.delete_message(r["id"])
-                                        break
-                            if user_id:
+                                # 伪造 tool response 写入 DB，保证 tool_calls 链路完整
+                                db.append_message(user_id, "tool",
+                                    json.dumps({"role": "tool", "tool_call_id": tc["id"], "content": result},
+                                               ensure_ascii=False))
                                 db.append_message(user_id, "assistant", result)
                             history.append({"role": "assistant", "content": result})
                             return result
